@@ -14,6 +14,10 @@ import {
   apiRegister,
   apiLogout,
   apiGetMe,
+  apiGetProfile,
+  apiUpdateMe,
+  apiChangePassword,
+  apiUploadAvatar,
   apiRegisterPushToken,
   getStoredTokens,
   storeTokens,
@@ -53,6 +57,9 @@ interface AuthContextValue {
   enableFaceID: () => Promise<boolean>;
   disableFaceID: () => Promise<void>;
   authenticateWithFaceID: () => Promise<boolean>;
+  updateProfile: (fields: { name?: string; email?: string; dateOfBirth?: string | null }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  uploadAvatar: (imageUri: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -71,17 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const faceIDPref = await SecureStore.getItemAsync(FACE_ID_KEY);
         if (accessToken) {
           setToken(accessToken);
-          // Fetch user profile — if token is expired, auto-refresh happens in apiFetch
           const me = await apiGetMe();
-          // eslint-disable-next-line no-console
-          console.log("[Auth] /me payload after unwrap:", JSON.stringify(me));
-          setUser(me);
-          // Register push token (best-effort — don't block restore)
+          const profile = await apiGetProfile();
+          setUser({ ...me, ...profile });
           registerPushToken();
         }
         setIsFaceIDEnabled(faceIDPref === "true");
       } catch {
-        // Token invalid / network error — start fresh
         await clearTokens();
         setToken(null);
         setUser(null);
@@ -96,7 +99,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await apiLogin(email, password);
     await storeTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
-    setUser(data.user);
+    const profile = await apiGetProfile();
+    setUser({ ...data.user, ...profile });
     registerPushToken();
   }, []);
 
@@ -104,7 +108,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await apiRegister(name, email, password);
     await storeTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
-    setUser(data.user);
+    const profile = await apiGetProfile();
+    setUser({ ...data.user, ...profile });
     registerPushToken();
   }, []);
 
@@ -170,6 +175,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authenticateWithFaceID]);
 
+  const updateProfile = useCallback(async (fields: {
+    name?: string;
+    email?: string;
+    dateOfBirth?: string | null;
+  }) => {
+    await apiUpdateMe(fields);
+    // Refetch to get authoritative state from backend
+    const fresh = await apiGetMe();
+    setUser(fresh);
+  }, []);
+
+  const changePassword = useCallback(async (
+    currentPassword: string,
+    newPassword: string
+  ) => {
+    await apiChangePassword(currentPassword, newPassword);
+  }, []);
+
+  const uploadAvatar = useCallback(async (imageUri: string) => {
+    const updated = await apiUploadAvatar(imageUri);
+    setUser((prev) => prev ? { ...prev, ...updated } : updated);
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -184,6 +212,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         enableFaceID,
         disableFaceID,
         authenticateWithFaceID,
+        updateProfile,
+        changePassword,
+        uploadAvatar,
       }}
     >
       {children}

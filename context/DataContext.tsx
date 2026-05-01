@@ -248,7 +248,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setSlotCache({});
       // Persist to backend (best-effort)
       try {
-        await apiUpdateMe(center.id);
+        await apiUpdateMe({ defaultCenterId: center.id });
       } catch {}
     },
     []
