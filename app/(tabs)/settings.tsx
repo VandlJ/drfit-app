@@ -11,7 +11,8 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPin, ChevronRight, LogOut, ScanFace, MessageSquare, Star, X } from "lucide-react-native";
+import { MapPin, ChevronRight, LogOut, MessageSquare, Star, X } from "lucide-react-native";
+import { SymbolView } from "expo-symbols";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
@@ -148,7 +149,7 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                <ScanFace size={18} color={Colors.textSecondary} />
+                <SymbolView name="faceid" size={20} tintColor={Colors.textSecondary} />
               </View>
               <View className="flex-1">
                 <Text className="text-sm font-semibold text-black">

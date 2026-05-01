@@ -36,7 +36,7 @@ export default function BookingCard({ reservation, onPress }: BookingCardProps) 
         </View>
       </View>
       <View className="flex-row items-center gap-1.5">
-        <Text className="text-xs text-gray-400">{slot.priceCredits} cr</Text>
+        <Text className="text-xs text-gray-400">{slot.priceCredits}</Text>
         <ChevronRight size={16} color={Colors.textMuted} />
       </View>
     </TouchableOpacity>

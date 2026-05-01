@@ -11,6 +11,7 @@ import * as LocalAuthentication from "expo-local-authentication";
 import * as Notifications from "expo-notifications";
 import {
   apiLogin,
+  apiRegister,
   apiLogout,
   apiGetMe,
   apiRegisterPushToken,
@@ -46,6 +47,8 @@ interface AuthContextValue {
   isLoading: boolean;
   isFaceIDEnabled: boolean;
   login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
+  loginWithBiometrics: () => Promise<boolean>;
   logout: () => Promise<void>;
   enableFaceID: () => Promise<boolean>;
   disableFaceID: () => Promise<void>;
@@ -92,7 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storeTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
     setUser(data.user);
-    // Register push token after fresh login (best-effort)
+    registerPushToken();
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    const data = await apiRegister(name, email, password);
+    await storeTokens(data.accessToken, data.refreshToken);
+    setToken(data.accessToken);
+    setUser(data.user);
     registerPushToken();
   }, []);
 
@@ -131,10 +141,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const authenticateWithFaceID = useCallback(async (): Promise<boolean> => {
     try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (!hasHardware) return false;
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!isEnrolled) return false;
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Sign in to DrFit",
         disableDeviceFallback: false,
@@ -146,6 +152,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const loginWithBiometrics = useCallback(async (): Promise<boolean> => {
+    try {
+      const success = await authenticateWithFaceID();
+      if (!success) return false;
+      const { accessToken } = await getStoredTokens();
+      if (!accessToken) return false;
+      setToken(accessToken);
+      const me = await apiGetMe();
+      setUser(me);
+      registerPushToken();
+      return true;
+    } catch {
+      return false;
+    }
+  }, [authenticateWithFaceID]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -154,6 +176,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isFaceIDEnabled,
         login,
+        register,
+        loginWithBiometrics,
         logout,
         enableFaceID,
         disableFaceID,

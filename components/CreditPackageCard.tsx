@@ -60,7 +60,7 @@ export default function CreditPackageCard({
               isSelected ? "text-black/50" : "text-gray-400"
             }`}
           >
-            {" "}cr
+            {" "}credits
           </Text>
         </Text>
         {pkg.bonusCredits > 0 && (

@@ -152,11 +152,11 @@ export default function TopUpScreen() {
               Order Summary
             </Text>
             <View className="h-px bg-gray-100" />
-            <Row label="Credits" value={`${selectedPkg.credits.toLocaleString()} cr`} />
+            <Row label="Credits" value={`${selectedPkg.credits.toLocaleString()}`} />
             {selectedPkg.bonusCredits > 0 && (
               <Row
                 label="Bonus"
-                value={`+${selectedPkg.bonusCredits} cr`}
+                value={`+${selectedPkg.bonusCredits}`}
                 valueStyle="text-primary"
               />
             )}

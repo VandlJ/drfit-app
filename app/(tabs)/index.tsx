@@ -71,7 +71,6 @@ export default function HomeScreen() {
               <Text className="text-sm font-semibold text-black">
                 {creditBalance}
               </Text>
-              <Text className="text-xs text-gray-400">cr</Text>
             </TouchableOpacity>
           </View>
 
