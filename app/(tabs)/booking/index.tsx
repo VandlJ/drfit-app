@@ -2,8 +2,10 @@ import { useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { MapPin, ChevronDown } from "lucide-react-native";
 import WeekCalendar from "@/components/WeekCalendar";
 import SlotList from "@/components/SlotList";
+import CenterPickerSheet from "@/components/CenterPickerSheet";
 import { useData } from "@/context/DataContext";
 import { Colors } from "@/constants/colors";
 import type { Slot } from "@/constants/types";
@@ -14,18 +16,18 @@ function getTodayKey(): string {
 
 export default function BookingScreen() {
   const router = useRouter();
-  const { getSlotsForDate, creditBalance } = useData();
+  const { getSlotsForDate, creditBalance, centers, selectedCenter, setSelectedCenter } =
+    useData();
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayKey());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const slots = useMemo(
     () => getSlotsForDate(selectedDate),
     [selectedDate, getSlotsForDate]
   );
 
-  // Build set of dates that have at least one available slot (for calendar dots)
-  // For perf: only check the dates visible in the WeekCalendar (21 days)
   const availableDates = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     const today = new Date();
@@ -41,7 +43,7 @@ export default function BookingScreen() {
 
   function handleSelectDate(date: string) {
     setSelectedDate(date);
-    setSelectedSlot(null); // reset slot when date changes
+    setSelectedSlot(null);
   }
 
   function handleProceed() {
@@ -53,10 +55,7 @@ export default function BookingScreen() {
         `You need ${selectedSlot.priceCredits} credits but only have ${creditBalance}. Top up in the Credits tab.`,
         [
           { text: "Cancel", style: "cancel" },
-          {
-            text: "Top Up",
-            onPress: () => router.push("/(tabs)/credits/topup"),
-          },
+          { text: "Top Up", onPress: () => router.push("/(tabs)/credits/topup") },
         ]
       );
       return;
@@ -75,11 +74,23 @@ export default function BookingScreen() {
     <SafeAreaView className="flex-1 bg-neutral-100">
       <View className="flex-1 gap-4 pt-4">
         {/* Header */}
-        <View className="px-6 gap-0.5">
+        <View className="px-6 gap-1">
           <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
             DrFit
           </Text>
           <Text className="text-2xl font-bold text-gray-900">Book a Session</Text>
+          {/* Center switcher */}
+          <TouchableOpacity
+            className="flex-row items-center gap-1 mt-0.5 self-start"
+            onPress={() => setPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <MapPin size={12} color={Colors.primary} />
+            <Text className="text-sm font-medium text-primary">
+              {selectedCenter.name}
+            </Text>
+            <ChevronDown size={12} color={Colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Date picker */}
@@ -102,7 +113,7 @@ export default function BookingScreen() {
         </View>
       </View>
 
-      {/* Bottom CTA — only shown when a slot is selected */}
+      {/* Bottom CTA */}
       {selectedSlot && (
         <View className="absolute bottom-0 left-0 right-0 px-6 pb-8 pt-4 bg-neutral-100 border-t border-gray-200">
           <View className="flex-row items-center justify-between mb-3">
@@ -118,12 +129,21 @@ export default function BookingScreen() {
             onPress={handleProceed}
             activeOpacity={0.85}
           >
-            <Text className="text-white text-base font-semibold">
-              Continue
-            </Text>
+            <Text className="text-white text-base font-semibold">Continue</Text>
           </TouchableOpacity>
         </View>
       )}
+
+      <CenterPickerSheet
+        visible={pickerVisible}
+        centers={centers}
+        selectedCenterId={selectedCenter.id}
+        onSelect={(c) => {
+          setSelectedCenter(c);
+          setSelectedSlot(null);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </SafeAreaView>
   );
 }

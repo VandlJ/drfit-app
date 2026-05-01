@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, CalendarCheck, Wallet } from "lucide-react-native";
+import { ChevronLeft, CalendarCheck, Wallet, MapPin } from "lucide-react-native";
 import { useData } from "@/context/DataContext";
 import { getMockSlotsForDate } from "@/constants/mock";
 import { formatDate } from "@/constants/types";
@@ -11,11 +11,12 @@ import { Colors } from "@/constants/colors";
 export default function ConfirmScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ date: string; slotIdx: string }>();
-  const { addReservation, creditBalance } = useData();
+  const { addReservation, creditBalance, selectedCenter } = useData();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Reconstruct slot from deterministic mock
-  const slot = getMockSlotsForDate(params.date)[Number(params.slotIdx)];
+  const slot = getMockSlotsForDate(params.date, selectedCenter.id)[
+    Number(params.slotIdx)
+  ];
 
   if (!slot) {
     return (
@@ -51,7 +52,7 @@ export default function ConfirmScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="px-6 pt-4 gap-6">
-          {/* Back button + title */}
+          {/* Back + title */}
           <View className="flex-row items-center gap-3">
             <TouchableOpacity
               className="bg-white border border-gray-200 rounded-full w-9 h-9 items-center justify-center"
@@ -86,34 +87,41 @@ export default function ConfirmScreen() {
             <View className="gap-3">
               <Row label="Time" value={`${slot.startTime} – ${slot.endTime}`} />
               <Row label="Duration" value="60 minutes" />
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-gray-500">Location</Text>
+                <View className="flex-row items-center gap-1">
+                  <MapPin size={12} color={Colors.primary} />
+                  <Text className="text-sm text-gray-900 font-medium">
+                    {selectedCenter.name}
+                  </Text>
+                </View>
+              </View>
+              <Row label="Address" value={selectedCenter.address} />
             </View>
           </View>
 
-          {/* Payment summary card */}
+          {/* Payment summary */}
           <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100 shadow-sm">
             <View className="flex-row items-center gap-3">
               <View className="bg-primary-light rounded-xl w-12 h-12 items-center justify-center">
                 <Wallet size={22} color={Colors.primary} />
               </View>
-              <Text className="text-base font-bold text-gray-900">
-                Payment
-              </Text>
+              <Text className="text-base font-bold text-gray-900">Payment</Text>
             </View>
 
             <View className="h-px bg-gray-100" />
 
             <View className="gap-3">
               <Row label="Session cost" value={`${slot.priceCredits} credits`} />
-              <Row
-                label="Current balance"
-                value={`${creditBalance} credits`}
-              />
+              <Row label="Current balance" value={`${creditBalance} credits`} />
               <View className="h-px bg-gray-100" />
               <Row
                 label="Balance after"
                 value={`${balanceAfter} credits`}
                 valueStyle={
-                  balanceAfter < 0 ? "text-red-600 font-bold" : "text-primary font-bold"
+                  balanceAfter < 0
+                    ? "text-red-600 font-bold"
+                    : "text-primary font-bold"
                 }
               />
             </View>
@@ -127,7 +135,6 @@ export default function ConfirmScreen() {
             </View>
           )}
 
-          {/* Confirm button */}
           <TouchableOpacity
             className={`rounded-full py-4 items-center ${
               canAfford && !isLoading ? "bg-primary" : "bg-gray-200"
@@ -162,9 +169,7 @@ function Row({
   return (
     <View className="flex-row items-center justify-between">
       <Text className="text-sm text-gray-500">{label}</Text>
-      <Text className={`text-sm text-gray-900 ${valueStyle ?? ""}`}>
-        {value}
-      </Text>
+      <Text className={`text-sm text-gray-900 ${valueStyle ?? ""}`}>{value}</Text>
     </View>
   );
 }

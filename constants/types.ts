@@ -9,6 +9,13 @@ export interface User {
   createdAt: string;
 }
 
+export interface Center {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+}
+
 export interface Slot {
   id: string;
   date: string;       // "YYYY-MM-DD"
@@ -24,6 +31,8 @@ export interface Reservation {
   id: string;
   userId: string;
   slot: Slot;
+  centerId: string;
+  centerName: string;
   status: ReservationStatus;
   pin: string | null;  // null = not yet revealed (> 30 min before start)
   creditsSpent: number;

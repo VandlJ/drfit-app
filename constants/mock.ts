@@ -4,6 +4,7 @@
 
 import type {
   User,
+  Center,
   Reservation,
   Slot,
   CreditTransaction,
@@ -25,6 +26,23 @@ export const MOCK_USER: User = {
 export const DEMO_EMAIL = "john.doe@example.com";
 export const DEMO_PASSWORD = "password123";
 
+// ─── Mock Centers ─────────────────────────────────────────────────────────────
+
+export const MOCK_CENTERS: Center[] = [
+  {
+    id: "center-001",
+    name: "Fitness Plzeň Centrum",
+    address: "Náměstí Republiky 12",
+    city: "Plzeň",
+  },
+  {
+    id: "center-002",
+    name: "Fitness Plzeň Slovany",
+    address: "Slovanská alej 45",
+    city: "Plzeň",
+  },
+];
+
 // ─── Helper: build date strings relative to today ────────────────────────────
 
 function daysFromNow(days: number): string {
@@ -44,6 +62,8 @@ export const MOCK_RESERVATIONS: Reservation[] = [
     // Nearest upcoming — hero card (PIN hidden, > 30 min away)
     id: "res-001",
     userId: "user-001",
+    centerId: "center-001",
+    centerName: "Fitness Plzeň Centrum",
     slot: {
       id: "slot-101",
       date: daysFromNow(1),
@@ -58,9 +78,11 @@ export const MOCK_RESERVATIONS: Reservation[] = [
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
   },
   {
-    // Secondary upcoming card
+    // Secondary upcoming card — different center
     id: "res-002",
     userId: "user-001",
+    centerId: "center-002",
+    centerName: "Fitness Plzeň Slovany",
     slot: {
       id: "slot-102",
       date: daysFromNow(7),
@@ -78,6 +100,8 @@ export const MOCK_RESERVATIONS: Reservation[] = [
     // Secondary upcoming card
     id: "res-003",
     userId: "user-001",
+    centerId: "center-001",
+    centerName: "Fitness Plzeň Centrum",
     slot: {
       id: "slot-103",
       date: daysFromNow(11),
@@ -95,6 +119,8 @@ export const MOCK_RESERVATIONS: Reservation[] = [
     // Completed — history only
     id: "res-004",
     userId: "user-001",
+    centerId: "center-001",
+    centerName: "Fitness Plzeň Centrum",
     slot: {
       id: "slot-090",
       date: daysAgo(6),
@@ -112,6 +138,8 @@ export const MOCK_RESERVATIONS: Reservation[] = [
     // Cancelled — history only
     id: "res-005",
     userId: "user-001",
+    centerId: "center-002",
+    centerName: "Fitness Plzeň Slovany",
     slot: {
       id: "slot-089",
       date: daysAgo(13),
@@ -129,13 +157,14 @@ export const MOCK_RESERVATIONS: Reservation[] = [
 
 // ─── Mock Slots (for booking screen) ──────────────────────────────────────────
 
-export function getMockSlotsForDate(date: string): Slot[] {
-  // Deterministically mark some slots as unavailable based on date
+export function getMockSlotsForDate(date: string, centerId: string = "center-001"): Slot[] {
   const dayOfMonth = parseInt(date.split("-")[2], 10);
+  // Different unavailability patterns per center so they look distinct
+  const seed = centerId === "center-002" ? 3 : 0;
   const unavailableIndices = [
-    dayOfMonth % 3,
-    (dayOfMonth + 2) % 5,
-    (dayOfMonth + 4) % 6,
+    (dayOfMonth + seed) % 3,
+    (dayOfMonth + seed + 2) % 5,
+    (dayOfMonth + seed + 4) % 6,
   ];
 
   const times = [
@@ -155,7 +184,7 @@ export function getMockSlotsForDate(date: string): Slot[] {
   ];
 
   return times.map((t, i) => ({
-    id: `slot-${date}-${i}`,
+    id: `slot-${date}-${centerId}-${i}`,
     date,
     startTime: t.start,
     endTime: t.end,

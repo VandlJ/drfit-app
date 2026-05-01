@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, MapPin } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import type { Reservation } from "@/constants/types";
 import { formatDate } from "@/constants/types";
@@ -10,7 +10,7 @@ interface BookingCardProps {
 }
 
 export default function BookingCard({ reservation, onPress }: BookingCardProps) {
-  const { slot } = reservation;
+  const { slot, centerName } = reservation;
 
   return (
     <TouchableOpacity
@@ -29,6 +29,10 @@ export default function BookingCard({ reservation, onPress }: BookingCardProps) 
           <Text className="text-xs text-gray-500">
             {slot.startTime} – {slot.endTime}
           </Text>
+          <View className="flex-row items-center gap-1 mt-0.5">
+            <MapPin size={10} color={Colors.textMuted} />
+            <Text className="text-[11px] text-gray-400">{centerName}</Text>
+          </View>
         </View>
       </View>
       <View className="flex-row items-center gap-1.5">

@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, CalendarPlus, Wallet, Clock } from "lucide-react-native";
+import { Home, CalendarPlus, Wallet, Clock, Settings } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 
 export default function TabsLayout() {
@@ -53,6 +53,15 @@ export default function TabsLayout() {
           title: "History",
           tabBarIcon: ({ color, size }) => (
             <Clock size={size} color={color} strokeWidth={2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color, size }) => (
+            <Settings size={size} color={color} strokeWidth={2} />
           ),
         }}
       />

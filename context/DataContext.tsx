@@ -8,9 +8,11 @@ import {
   MOCK_RESERVATIONS,
   MOCK_TRANSACTIONS,
   MOCK_INITIAL_BALANCE,
+  MOCK_CENTERS,
   getMockSlotsForDate,
 } from "@/constants/mock";
 import type {
+  Center,
   Reservation,
   CreditTransaction,
   Slot,
@@ -18,6 +20,11 @@ import type {
 } from "@/constants/types";
 
 interface DataContextValue {
+  // Centers
+  centers: Center[];
+  selectedCenter: Center;
+  setSelectedCenter: (center: Center) => void;
+  // Reservations
   reservations: Reservation[];
   creditBalance: number;
   transactions: CreditTransaction[];
@@ -32,15 +39,19 @@ interface DataContextValue {
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const [centers] = useState<Center[]>(MOCK_CENTERS);
+  const [selectedCenter, setSelectedCenter] = useState<Center>(MOCK_CENTERS[0]);
   const [reservations, setReservations] =
     useState<Reservation[]>(MOCK_RESERVATIONS);
   const [creditBalance, setCreditBalance] = useState(MOCK_INITIAL_BALANCE);
   const [transactions, setTransactions] =
     useState<CreditTransaction[]>(MOCK_TRANSACTIONS);
 
-  const getSlotsForDate = useCallback((date: string): Slot[] => {
-    return getMockSlotsForDate(date);
-  }, []);
+  // Re-created when selectedCenter changes so slots reflect the active center
+  const getSlotsForDate = useCallback(
+    (date: string): Slot[] => getMockSlotsForDate(date, selectedCenter.id),
+    [selectedCenter]
+  );
 
   const addReservation = useCallback(
     async (slot: Slot) => {
@@ -51,6 +62,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const newReservation: Reservation = {
         id: `res-${Date.now()}`,
         userId: "user-001",
+        centerId: selectedCenter.id,
+        centerName: selectedCenter.name,
         slot: { ...slot, isAvailable: false },
         status: "active",
         pin: null,
@@ -78,7 +91,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setCreditBalance((prev) => prev - slot.priceCredits);
       setTransactions((prev) => [newTransaction, ...prev]);
     },
-    [creditBalance]
+    [creditBalance, selectedCenter]
   );
 
   const cancelReservation = useCallback(async (id: string) => {
@@ -107,8 +120,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [reservations]);
 
   const topUpCredits = useCallback(async (pkg: CreditPackage) => {
-    // In production: POST /credits/topup → get clientSecret → confirm Apple Pay
-    // For now: optimistically add credits after successful Apple Pay sheet
     const topUpTx: CreditTransaction = {
       id: `tx-${Date.now()}`,
       userId: "user-001",
@@ -128,6 +139,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider
       value={{
+        centers,
+        selectedCenter,
+        setSelectedCenter,
         reservations,
         creditBalance,
         transactions,
