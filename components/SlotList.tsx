@@ -1,4 +1,5 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { Frown } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import type { Slot } from "@/constants/types";
 
@@ -16,7 +17,8 @@ export default function SlotList({
   if (slots.length === 0) {
     return (
       <View className="flex-1 items-center justify-center py-16 px-8">
-        <Text className="text-gray-400 text-sm text-center">
+        <Frown size={96} color="#D1D5DB" strokeWidth={1.5} />
+        <Text className="text-gray-400 text-sm text-center mt-6">
           No slots available for this day.{"\n"}Check back later or pick another date.
         </Text>
       </View>
@@ -38,6 +40,7 @@ export default function SlotList({
             onPress={() => !isUnavailable && onSelectSlot(slot)}
             activeOpacity={isUnavailable ? 1 : 0.75}
             disabled={isUnavailable}
+            style={isUnavailable ? { opacity: 0.55 } : undefined}
             className={`
               flex-row items-center justify-between
               rounded-2xl px-5 py-4 border
@@ -78,35 +81,35 @@ export default function SlotList({
 
             {/* Right side */}
             <View className="items-end gap-1">
-              <Text
-                className={`text-sm font-semibold ${
-                  isSelected
-                    ? "text-black"
-                    : isUnavailable
-                    ? "text-gray-300"
-                    : "text-black"
-                }`}
-              >
-                {slot.priceCredits} cr
-              </Text>
               {isUnavailable ? (
-                <View className="bg-gray-200 rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] text-gray-400 font-medium">
+                <View className="bg-gray-200 rounded-full px-2.5 py-1">
+                  <Text className="text-[10px] text-gray-500 font-medium">
                     Taken
                   </Text>
                 </View>
-              ) : isSelected ? (
-                <View className="bg-black/10 rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] text-black font-semibold">
-                    Selected
-                  </Text>
-                </View>
               ) : (
-                <View className="bg-neutral-100 rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] text-gray-500 font-medium">
-                    Free
+                <>
+                  <Text
+                    className={`text-sm font-semibold ${
+                      isSelected ? "text-black" : "text-black"
+                    }`}
+                  >
+                    {slot.priceCredits}
                   </Text>
-                </View>
+                  {isSelected ? (
+                    <View className="bg-black/10 rounded-full px-2 py-0.5">
+                      <Text className="text-[10px] text-black font-semibold">
+                        Selected
+                      </Text>
+                    </View>
+                  ) : (
+                    <View className="bg-neutral-100 rounded-full px-2 py-0.5">
+                      <Text className="text-[10px] text-gray-500 font-medium">
+                        Free
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
             </View>
           </TouchableOpacity>

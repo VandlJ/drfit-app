@@ -1,0 +1,171 @@
+// Hook that wires DrFit reservations to iOS Live Activity + Lock Screen widget.
+//
+// Behaviour:
+//   - When a reservation enters the "active_timer" window, start a Live Activity.
+//   - When that reservation ends (status changes / time passes / cancelled),
+//     end the Live Activity.
+//   - In parallel, mirror state to the Lock Screen widget (active session
+//     countdown, or the next upcoming session).
+//
+// The hook is iOS-only and silently no-ops on Android. expo-widgets is also
+// unavailable in Expo Go — we wrap calls in try/catch so the JS bridge does
+// not crash the app on unsupported runtimes.
+
+import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
+import {
+  getHeroCardState,
+  getSlotEndDate,
+  getSlotStartDate,
+} from "@/constants/types";
+import type { Reservation } from "@/constants/types";
+
+// Lazily access the widgets module so the app does not crash when running in
+// Expo Go (where the native module is missing).
+type LiveActivityInstance = {
+  update: (props: unknown) => Promise<void>;
+  end: (
+    policy?: unknown,
+    props?: unknown,
+    contentDate?: Date
+  ) => Promise<void>;
+};
+
+let WorkoutActivity:
+  | {
+      start: (props: any, url?: string) => LiveActivityInstance;
+      getInstances: () => LiveActivityInstance[];
+    }
+  | null = null;
+
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  WorkoutActivity = require("@/widgets/WorkoutActivity").default;
+} catch {
+  // Native modules (expo-widgets, @expo/ui) are unavailable in Expo Go
+  // and on Android — silently degrade, Live Activity simply won't run.
+}
+
+const WIDGETS_SUPPORTED = Platform.OS === "ios" && WorkoutActivity != null;
+
+// Helper: end a Live Activity instance, swallowing both sync throws and
+// promise rejections (the OS may have already terminated the activity).
+function safeEnd(inst: LiveActivityInstance | null | undefined, policy: string) {
+  if (!inst) return;
+  try {
+    Promise.resolve(inst.end(policy)).catch(() => {});
+  } catch {}
+}
+
+function findActiveReservation(reservations: Reservation[]): Reservation | null {
+  return (
+    reservations.find(
+      (r) => r.status === "active" && getHeroCardState(r) === "active_timer"
+    ) ?? null
+  );
+}
+
+export function useWorkoutLiveActivity(reservations: Reservation[]) {
+  const activeInstance = useRef<LiveActivityInstance | null>(null);
+  const activeReservationId = useRef<string | null>(null);
+  const activeProps = useRef<Record<string, unknown> | null>(null);
+  const lastRefreshAt = useRef<number>(0);
+
+  // Re-evaluate every time reservations change AND on a 1s tick so that
+  // the active window detection picks up time progression even when the
+  // reservations array hasn't changed reference-wise.
+  useEffect(() => {
+    if (!WIDGETS_SUPPORTED) return;
+
+    // Defensive cleanup: end any orphan Live Activities left over from a
+    // previous app run (e.g. after a hard restart while one was active).
+    try {
+      const orphans = WorkoutActivity!.getInstances?.() ?? [];
+      if (orphans.length > 0) {
+        console.log("[LiveActivity] Cleaning up orphans:", orphans.length);
+        orphans.forEach((inst) => safeEnd(inst, "immediate"));
+      }
+    } catch (e) {
+      console.warn("[LiveActivity] orphan cleanup failed:", e);
+    }
+
+    const tick = () => {
+      const active = findActiveReservation(reservations);
+
+      // ── Live Activity sync ────────────────────────────────────────────
+      if (active && activeReservationId.current !== active.id) {
+        // Start a new live activity (end any stale one first)
+        console.log("[LiveActivity] Starting for reservation:", active.id);
+        safeEnd(activeInstance.current, "immediate");
+        try {
+          const start = getSlotStartDate(active.slot);
+          const end = getSlotEndDate(active.slot);
+          const startProps = {
+            centerName: active.centerName,
+            startDateMs: start.getTime(),
+            endDateMs: end.getTime(),
+          };
+          activeInstance.current = WorkoutActivity!.start(
+            startProps,
+            `drfit://reservation/${active.id}`
+          );
+          activeReservationId.current = active.id;
+          activeProps.current = startProps;
+          lastRefreshAt.current = Date.now();
+          console.log("[LiveActivity] Started OK");
+        } catch (e) {
+          console.warn("[LiveActivity] failed to start:", e);
+        }
+      } else if (!active && activeReservationId.current) {
+        // End the live activity
+        safeEnd(activeInstance.current, "default");
+        activeInstance.current = null;
+        activeReservationId.current = null;
+        activeProps.current = null;
+      } else if (active && activeInstance.current && activeProps.current) {
+        // Periodically refresh the activity so SwiftUI re-renders the
+        // compact Dynamic Island slot (which uses a static `Date.now()`-based
+        // label rather than `timerInterval`). 30s gives roughly minute-level
+        // accuracy without burning the system update budget.
+        if (Date.now() - lastRefreshAt.current >= 30_000) {
+          const inst = activeInstance.current;
+          // iOS skips updates when ContentState equality matches, so we
+          // bump a `_tick` field to force a re-render every cycle.
+          Promise.resolve(
+            inst.update({
+              ...activeProps.current,
+              _tick: Date.now(),
+            })
+          )
+            .then(() => {
+              lastRefreshAt.current = Date.now();
+            })
+            .catch((e) => {
+              // Live Activity was killed by the OS or user — drop the stale
+              // reference so the next tick can start a fresh one.
+              console.warn("[LiveActivity] refresh failed, resetting:", e?.message ?? e);
+              if (activeInstance.current === inst) {
+                activeInstance.current = null;
+                activeReservationId.current = null;
+                activeProps.current = null;
+              }
+            });
+        }
+      }
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [reservations]);
+
+  // Cleanup on unmount (e.g. logout)
+  useEffect(() => {
+    return () => {
+      if (!WIDGETS_SUPPORTED) return;
+      safeEnd(activeInstance.current, "immediate");
+      activeInstance.current = null;
+      activeReservationId.current = null;
+    };
+  }, []);
+}

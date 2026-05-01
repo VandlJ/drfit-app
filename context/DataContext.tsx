@@ -30,6 +30,75 @@ import type {
 } from "@/constants/types";
 import { CREDIT_PACKAGES } from "@/constants/mock";
 import { useAuth } from "./AuthContext";
+import { useWorkoutLiveActivity } from "@/hooks/useWorkoutLiveActivity";
+
+// ─── Dev flag: inject a fake "currently active" reservation ──────────────────
+// Set to true to simulate a workout in progress (start = now, end = +30 min)
+// for testing Live Activity / Dynamic Island. Remove before shipping.
+const INJECT_FAKE_ACTIVE_RESERVATION = false;
+
+/**
+ * Backend may return Czech transaction descriptions (e.g. "Rezervace slotu …").
+ * Normalise to English for the UI. Falls back to a generic label per type.
+ */
+function translateTxDescription(
+  raw: string | null | undefined,
+  type: CreditTransaction["type"]
+): string {
+  const fallback: Record<CreditTransaction["type"], string> = {
+    spend: "Session booking",
+    topup: "Credit top-up",
+    refund: "Refund",
+    bonus: "Bonus credits",
+  };
+  if (!raw) return fallback[type];
+
+  // Czech → English replacements (preserves time / date suffixes).
+  let s = raw;
+  s = s.replace(/Rezervace slotu/gi, "Session booking");
+  s = s.replace(/Rezervace/gi, "Booking");
+  s = s.replace(/Vr[áa]cen[íi] kredit[uůů]?/gi, "Refund");
+  s = s.replace(/Dobit[íi] kredit[uů]/gi, "Credit top-up");
+  s = s.replace(/Top-?up bal[íi][čc]ek/gi, "Top-up package");
+  s = s.replace(/bal[íi][čc]ek/gi, "package");
+  s = s.replace(/Bonus(?:ov[ée])? kredity/gi, "Bonus credits");
+  s = s.replace(/Zru[šs]eno/gi, "Cancelled");
+  s = s.replace(/(\d+)\s*kredit[uůyů]?/gi, "$1 credits");
+  s = s.replace(/\bza\b/gi, "for");
+  return s;
+}
+
+function buildFakeActiveReservation(centerName: string, centerId: string): Reservation {
+  const now = new Date();
+  // Round start to "now" minus 1 minute (so we are clearly inside the window)
+  const start = new Date(now.getTime() - 60 * 1000);
+  const end = new Date(now.getTime() + 30 * 60 * 1000);
+
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const dateStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`;
+  const startTime = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+  const endTime = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
+
+  return {
+    id: "dev-fake-active",
+    slot: {
+      id: "dev-fake-slot",
+      centerId,
+      date: dateStr,
+      startTime,
+      endTime,
+      priceCredits: 1,
+      isAvailable: false,
+    },
+    centerId,
+    centerName,
+    centerAddress: "Dev Test Address",
+    status: "active",
+    pin: "1234",
+    creditsSpent: 1,
+    createdAt: now.toISOString(),
+  };
+}
 
 // ─── Cache: slots by "date|centerId" ─────────────────────────────────────────
 type SlotCache = Record<string, Slot[]>;
@@ -116,6 +185,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         imageUrl: c.imageUrl,
       }));
 
+      console.log("[Data] centers from API:", apiCenters.map((c) => ({ id: c.id, name: c.name, imageUrl: c.imageUrl })));
+
       setCenters(mappedCenters);
       // Default to first center (will be overridden by user defaultCenter later)
       setSelectedCenterState((prev) => prev ?? mappedCenters[0] ?? null);
@@ -132,11 +203,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: r.createdAt,
       }));
       setReservations(
-        mappedReservations.sort(
-          (a, b) =>
-            new Date(a.slot.date + "T" + a.slot.startTime).getTime() -
-            new Date(b.slot.date + "T" + b.slot.startTime).getTime()
-        )
+        (() => {
+          const all = INJECT_FAKE_ACTIVE_RESERVATION
+            ? [
+                buildFakeActiveReservation(
+                  mappedCenters[0]?.name ?? "DrFit Center",
+                  mappedCenters[0]?.id ?? "dev-center"
+                ),
+                ...mappedReservations,
+              ]
+            : mappedReservations;
+          return all.sort(
+            (a, b) =>
+              new Date(a.slot.date + "T" + a.slot.startTime).getTime() -
+              new Date(b.slot.date + "T" + b.slot.startTime).getTime()
+          );
+        })()
       );
 
       setCreditBalance(balance);
@@ -145,7 +227,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         id: t.id,
         amount: t.amount,
         type: normaliseTransactionType(t.type),
-        description: t.description,
+        description: translateTxDescription(t.description, normaliseTransactionType(t.type)),
         referenceId: t.referenceId,
         createdAt: t.createdAt,
       }));
@@ -166,7 +248,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setSlotCache({});
       // Persist to backend (best-effort)
       try {
-        await apiUpdateMe(center.id);
+        await apiUpdateMe({ defaultCenterId: center.id });
       } catch {}
     },
     []
@@ -266,12 +348,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // ── Top up credits (optimistic for now — Stripe flow wires in later) ──────
   const topUpCredits = useCallback(async (pkg: CreditPackage) => {
-    // The real Stripe flow will call apiCreateTopupIntent → confirm PaymentIntent
-    // → backend webhook updates balance. For now we just refresh after simulated delay.
-    await new Promise((r) => setTimeout(r, 800));
-    const newBalance = await apiGetCreditBalance();
-    setCreditBalance(newBalance);
-  }, []);
+    // Stripe webhook may take a moment to credit the account after payment confirmation.
+    // Poll the balance for up to ~5 s, refresh as soon as we see the change.
+    const before = creditBalance;
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      try {
+        const b = await apiGetCreditBalance();
+        setCreditBalance(b);
+        if (b > before) return; // webhook applied — done
+      } catch {}
+    }
+  }, [creditBalance]);
 
   // ── Manually refresh balance ───────────────────────────────────────────────
   const refreshBalance = useCallback(async () => {
@@ -280,6 +368,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setCreditBalance(b);
     } catch {}
   }, []);
+
+  // ── iOS Live Activity + Lock Screen widget sync ────────────────────────────
+  // No-ops on Android and in Expo Go.
+  useWorkoutLiveActivity(reservations);
 
   // Guard: render nothing until we have at least one center loaded
   const safeSelectedCenter: Center = selectedCenter ?? {

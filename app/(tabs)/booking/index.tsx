@@ -93,7 +93,7 @@ export default function BookingScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <View className="flex-1 gap-4 pt-4">
         {/* Header */}
         <View className="px-6 gap-1">
@@ -107,9 +107,8 @@ export default function BookingScreen() {
             >
               <Wallet size={14} color={Colors.textSecondary} />
               <Text className="text-sm font-semibold text-black">
-                {creditBalance}
+                {creditBalance} <Text className="text-gray-400 font-normal">cr</Text>
               </Text>
-              <Text className="text-xs text-gray-400">cr</Text>
             </TouchableOpacity>
           </View>
           {/* Center switcher */}
@@ -136,7 +135,7 @@ export default function BookingScreen() {
         {/* Slot list */}
         <View className="flex-1 gap-3">
           <View className="flex-row items-center gap-2 px-6">
-            <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <Text className="text-xs font-bold uppercase tracking-widest text-gray-700">
               Available Times
             </Text>
             {isFetchingSlots && (

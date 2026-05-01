@@ -6,8 +6,10 @@ import {
   TouchableOpacity,
   Pressable,
   Animated,
+  Image,
 } from "react-native";
-import { MapPin, Check, X } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Check, X } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import type { Center } from "@/constants/types";
 
@@ -20,6 +22,50 @@ interface CenterPickerSheetProps {
 }
 
 const SHEET_HEIGHT = 300; // approx slide distance
+const ROW_HEIGHT = 80;
+const PHOTO_WIDTH = 80;
+
+// Same deterministic Unsplash fallback used by BookingCard so each center
+// always shows the same photo across the app.
+const FALLBACK_GYM_IMAGES = [
+  "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=400&q=80",
+  "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=400&q=80",
+  "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80",
+  "https://images.unsplash.com/photo-1623874514711-0f321325f318?w=400&q=80",
+];
+
+function pickFallbackImage(centerId: string): string {
+  let hash = 0;
+  for (let i = 0; i < centerId.length; i++) {
+    hash = (hash * 31 + centerId.charCodeAt(i)) >>> 0;
+  }
+  return FALLBACK_GYM_IMAGES[hash % FALLBACK_GYM_IMAGES.length];
+}
+
+/**
+ * Square center thumbnail. Tries the provided URL first; on load failure
+ * (or when no URL is provided) falls back to a deterministic Unsplash gym photo.
+ */
+function CenterThumb({ center, size }: { center: Center; size: number }) {
+  const fallback = pickFallbackImage(center.id);
+  const initial =
+    center.imageUrl && center.imageUrl.length > 0 ? center.imageUrl : fallback;
+  const [uri, setUri] = useState<string>(initial);
+
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: size, height: size, backgroundColor: "#E5E7EB" }}
+      resizeMode="cover"
+      onError={() => {
+        if (uri !== fallback) {
+          console.log("[CenterThumb] image failed, falling back:", uri);
+          setUri(fallback);
+        }
+      }}
+    />
+  );
+}
 
 export default function CenterPickerSheet({
   visible,
@@ -102,7 +148,7 @@ export default function CenterPickerSheet({
               {/* Header */}
               <View className="flex-row items-center justify-between mb-5">
                 <Text className="text-lg font-bold text-gray-900">
-                  Vyber fitness centrum
+                  Select Location
                 </Text>
                 <TouchableOpacity
                   className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
@@ -124,43 +170,61 @@ export default function CenterPickerSheet({
                         onSelect(center);
                         onClose();
                       }}
-                      activeOpacity={0.7}
-                      className={`flex-row items-center gap-4 p-4 rounded-2xl border-2 ${
-                        isSelected
-                          ? "border-primary bg-green-50"
-                          : "border-gray-100 bg-gray-50"
+                      activeOpacity={0.85}
+                      className={`flex-row items-stretch rounded-2xl overflow-hidden border-2 bg-white ${
+                        isSelected ? "border-primary" : "border-gray-100"
                       }`}
+                      style={{ height: ROW_HEIGHT }}
                     >
-                      {/* Pin icon */}
+                      {/* Square photo flush to the left edge with a horizontal
+                          white gradient that fades the right side of the photo
+                          into the white row background. */}
                       <View
-                        className={`rounded-xl p-2.5 ${
-                          isSelected ? "bg-primary-light" : "bg-gray-200"
-                        }`}
+                        style={{
+                          width: PHOTO_WIDTH,
+                          height: ROW_HEIGHT,
+                          position: "relative",
+                        }}
                       >
-                        <MapPin
-                          size={20}
-                          color={isSelected ? Colors.primary : Colors.textSecondary}
+                        <CenterThumb center={center} size={PHOTO_WIDTH} />
+                        <LinearGradient
+                          colors={[
+                            "rgba(255,255,255,0)",
+                            "rgba(255,255,255,1)",
+                          ]}
+                          start={{ x: 0, y: 0.5 }}
+                          end={{ x: 1, y: 0.5 }}
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            left: PHOTO_WIDTH * 0.4,
+                            width: PHOTO_WIDTH * 0.6,
+                          }}
                         />
                       </View>
 
                       {/* Info */}
-                      <View className="flex-1 gap-0.5">
+                      <View className="flex-1 justify-center px-4 gap-0.5">
                         <Text
                           className={`text-sm font-semibold ${
-                            isSelected ? "text-primary" : "text-gray-900"
+                            isSelected ? "text-black" : "text-gray-900"
                           }`}
+                          numberOfLines={1}
                         >
                           {center.name}
                         </Text>
-                        <Text className="text-xs text-gray-500">
+                        <Text className="text-xs text-gray-500" numberOfLines={1}>
                           {center.address}
                         </Text>
                       </View>
 
                       {/* Selection indicator */}
                       {isSelected && (
-                        <View className="bg-primary rounded-full w-5 h-5 items-center justify-center">
-                          <Check size={12} color={Colors.textPrimary} strokeWidth={3} />
+                        <View className="justify-center pr-5">
+                          <View className="bg-primary rounded-full w-6 h-6 items-center justify-center">
+                            <Check size={14} color={Colors.textPrimary} strokeWidth={3} />
+                          </View>
                         </View>
                       )}
                     </TouchableOpacity>

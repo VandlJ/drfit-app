@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F5F5"
+      "backgroundColor": "#C8EF2F"
     },
     "ios": {
       "supportsTablet": false,
@@ -19,7 +19,9 @@
       "infoPlist": {
         "NSFaceIDUsageDescription": "DrFit uses Face ID to securely authenticate you without a password.",
         "NSCameraUsageDescription": "DrFit needs camera access for QR code scanning.",
-        "ios.config.usesNonExemptEncryption": false
+        "ios.config.usesNonExemptEncryption": false,
+        "NSSupportsLiveActivities": true,
+        "NSSupportsLiveActivitiesFrequentUpdates": true
       }
     },
     "android": {
@@ -40,8 +42,14 @@
         "projectId": "e8acf6e4-3a9b-4eca-a7dc-612335af8e1a"
       }
     },
-    "plugins": [
+      "plugins": [
       "expo-router",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "DrFit needs access to your calendar to add your training sessions."
+        }
+      ],
       [
         "expo-secure-store",
         {
@@ -67,6 +75,12 @@
           "icon": "./assets/icon.png",
           "color": "#16A34A",
           "sounds": []
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": []
         }
       ]
     ]

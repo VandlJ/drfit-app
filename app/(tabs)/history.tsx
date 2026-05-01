@@ -49,7 +49,7 @@ export default function HistoryScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <View className="flex-1 gap-4 pt-4">
         {/* Header */}
         <View className="px-6">
