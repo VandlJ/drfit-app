@@ -68,6 +68,12 @@
           "color": "#16A34A",
           "sounds": []
         }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": []
+        }
       ]
     ]
   }
