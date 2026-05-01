@@ -6,13 +6,13 @@ Priority: Speed, snappy UX, and native feel. Not building a scalable backend tod
 
 ## Tech Stack
 - **Expo SDK:** 55 (Latest)
-- **React Native:** 0.81.5
-- **React:** 19.1.0
+- **React Native:** 0.83.6
+- **React:** 19.2.0
 - **Engine:** New Architecture (Fabric) is ENABLED
 - **Routing:** Expo Router (file-based)
 - **Styling:** NativeWind v4 (Tailwind for React Native)
 - **UI Components:** React Native Paper (inputs/modals) + Lucide React Native (icons)
-- **Native Modules:** `expo-local-authentication` (Face ID), `expo-calendar`, `expo-notifications`, `@stripe/stripe-react-native` (Apple Pay)
+- **Native Modules:** `expo-local-authentication` (Face ID), `expo-notifications`, `@stripe/stripe-react-native` (Apple Pay)
 
 ## Environment & Testing Strategy
 - **Primary dev:** iOS Simulator on macOS
@@ -35,6 +35,24 @@ Priority: Speed, snappy UX, and native feel. Not building a scalable backend tod
 | `preview` | Internal | Stakeholder testing |
 | `production` | App Store | TestFlight / release |
 
+## MCP Tools Available
+The project has the **Expo MCP server** configured at `https://mcp.expo.dev/mcp` (see `opencode.json`).
+
+### Available MCP capabilities — use these proactively:
+| Tool | When to use |
+|---|---|
+| `expo-mcp_search_documentation` | Before implementing any Expo API — search official docs first |
+| `expo-mcp_read_documentation` | Read full doc page for a specific Expo feature |
+| `expo-mcp_add_library` | Install Expo-compatible packages (uses `expo install` under the hood) |
+| `expo-mcp_build_list` / `expo-mcp_build_info` | Check EAS build status and artifacts |
+| `expo-mcp_build_run` | Trigger an EAS build from a git branch |
+| `expo-mcp_build_logs` | Debug EAS build failures |
+| `expo-mcp_workflow_*` | Create and manage EAS CI/CD workflows |
+| `expo-mcp_testflight_crashes` | Inspect TestFlight crashes post-deploy |
+| `expo-mcp_testflight_feedback` | Read TestFlight user feedback screenshots |
+
+**Rule:** Always call `expo-mcp_search_documentation` before writing code that uses a new Expo SDK module.
+
 ## Golden Rules for Code Generation
 1. **Language:** ALL comments and documentation MUST be in English. Variables and function names must be semantic English.
 2. **Styling:** Use NativeWind (`className`) exclusively. Do not use `StyleSheet.create` unless strictly required by a third-party library or for complex animations.
@@ -52,3 +70,12 @@ Priority: Speed, snappy UX, and native feel. Not building a scalable backend tod
 ## Key Implementation Notes
 See `IMPLEMENTATION_CONTEXT.md` for detailed Face ID and Apple Pay implementation patterns,
 including the React 19 `forwardRef` shim, bare-workflow entitlements gotcha, and pre-ship checklist.
+
+## Context Files Index
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` | This file — AI agent guidelines and rules |
+| `IMPLEMENTATION_CONTEXT.md` | Face ID + Apple Pay implementation patterns |
+| `DESIGN_SYSTEM.md` | Colors, typography, spacing, component patterns |
+| `API_CONTRACT.md` | TypeScript interfaces, API endpoints, mock data |
+| `PROJECT_PLAN.md` | Implementation phases, file structure, progress tracker |
