@@ -38,10 +38,9 @@ let WorkoutActivity:
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   WorkoutActivity = require("@/widgets/WorkoutActivity").default;
-  console.log("[LiveActivity] Module loaded:", !!WorkoutActivity);
-} catch (e) {
-  // Native module unavailable (Expo Go, Android) — gracefully degrade.
-  console.warn("[LiveActivity] Failed to load module:", e);
+} catch {
+  // Native modules (expo-widgets, @expo/ui) are unavailable in Expo Go
+  // and on Android — silently degrade, Live Activity simply won't run.
 }
 
 const WIDGETS_SUPPORTED = Platform.OS === "ios" && WorkoutActivity != null;

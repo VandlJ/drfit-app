@@ -152,6 +152,8 @@ export interface ApiUser {
   role: "client" | "admin";
   createdAt?: string;
   defaultCenter?: { id: string; name: string } | null;
+  dateOfBirth?: string | null;
+  avatarUrl?: string | null;
 }
 
 export async function apiLogin(
@@ -186,11 +188,69 @@ export async function apiGetMe(): Promise<ApiUser> {
   return apiFetch<ApiUser>("/auth/me");
 }
 
-export async function apiUpdateMe(defaultCenterId: string): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/auth/me", {
+/** GET /me — full profile including avatarUrl and dateOfBirth. Response: { user: ApiUser } */
+export async function apiGetProfile(): Promise<Partial<ApiUser>> {
+  try {
+    const res = await apiFetch<{ user: ApiUser }>("/me");
+    return res.user ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export async function apiUpdateMe(fields: {
+  name?: string;
+  email?: string;
+  defaultCenterId?: string | null;
+  dateOfBirth?: string | null;
+}): Promise<ApiUser> {
+  const res = await apiFetch<{ user: ApiUser }>("/me", {
     method: "PATCH",
-    body: JSON.stringify({ defaultCenterId }),
+    body: JSON.stringify(fields),
   });
+  return res.user ?? (res as unknown as ApiUser);
+}
+
+export async function apiChangePassword(
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  await apiFetch("/me/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function apiUploadAvatar(imageUri: string): Promise<ApiUser> {
+  const { accessToken } = await getStoredTokens();
+  const formData = new FormData();
+  // Field name must be "file" per API spec (POST /me/avatar)
+  formData.append("file", {
+    uri: imageUri,
+    type: "image/jpeg",
+    name: "avatar.jpg",
+  } as any);
+
+  const res = await fetch(`${API_BASE}/me/avatar`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      // Do NOT set Content-Type — let fetch set multipart boundary automatically
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let message = `Upload failed (${res.status})`;
+    try {
+      const body = await res.json();
+      if (body?.message) message = body.message;
+    } catch {}
+    throw new ApiError(res.status, message);
+  }
+  const json = await res.json();
+  // Response: { user: ApiUser }
+  return json.user ?? json;
 }
 
 // ─── Centers ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  ScrollView,
   View,
   Text,
   TouchableOpacity,
@@ -9,20 +8,27 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { MapPin, ChevronRight, LogOut, MessageSquare, Star, X } from "lucide-react-native";
+import { MapPin, ChevronRight, LogOut, MessageSquare, Star, X, CalendarDays } from "lucide-react-native";
 import { SymbolView } from "expo-symbols";
+import * as Calendar from "expo-calendar";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
+import EditProfileSheet from "@/components/EditProfileSheet";
+import { Image } from "react-native";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { apiSubmitFeedback } from "@/lib/api";
 import { Colors } from "@/constants/colors";
+import { getSlotStartDate, getSlotEndDate } from "@/constants/types";
 
 export default function SettingsScreen() {
-  const { user, logout, isFaceIDEnabled, enableFaceID, disableFaceID } = useAuth();
-  const { centers, selectedCenter, setSelectedCenter } = useData();
+  const { user, logout, isFaceIDEnabled, enableFaceID, disableFaceID, updateProfile, changePassword, uploadAvatar } = useAuth();
+  const { centers, selectedCenter, setSelectedCenter, reservations } = useData();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [profileVisible, setProfileVisible] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Feedback modal state
   const [feedbackVisible, setFeedbackVisible] = useState(false);
@@ -56,8 +62,84 @@ export default function SettingsScreen() {
     ]);
   }
 
-  function openFeedback() {
-    setRating(0);
+  async function handleExportToCalendar() {
+    const upcoming = reservations.filter((r) => {
+      if (r.status !== "active") return false;
+      const start = getSlotStartDate(r.slot);
+      return start.getTime() > Date.now();
+    });
+
+    if (upcoming.length === 0) {
+      Alert.alert("No upcoming sessions", "You have no upcoming sessions to export.");
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission denied",
+          "Please allow calendar access in Settings to export sessions."
+        );
+        return;
+      }
+
+      // Get or create a dedicated DrFit calendar
+      const allCalendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      let drfitCalendar = allCalendars.find((c) => c.title === "DrFit");
+      let calendarId: string;
+
+      if (drfitCalendar) {
+        calendarId = drfitCalendar.id;
+      } else {
+        const defaultCal = await Calendar.getDefaultCalendarAsync();
+        calendarId = await Calendar.createCalendarAsync({
+          title: "DrFit",
+          color: Colors.primary,
+          entityType: Calendar.EntityTypes.EVENT,
+          sourceId: defaultCal.source?.id,
+          source: defaultCal.source,
+          name: "DrFit",
+          ownerAccount: "personal",
+          accessLevel: Calendar.CalendarAccessLevel.OWNER,
+        });
+      }
+
+      // Add each upcoming session as an event
+      let added = 0;
+      for (const r of upcoming) {
+        const startDate = getSlotStartDate(r.slot);
+        const endDate = getSlotEndDate(r.slot);
+        const centerName = r.centerName && r.centerName !== "—" ? r.centerName : "DrFit";
+        const address = r.centerAddress && r.centerAddress !== "—" ? r.centerAddress : undefined;
+
+        await Calendar.createEventAsync(calendarId, {
+          title: `DrFit — ${centerName}`,
+          startDate,
+          endDate,
+          location: address,
+          notes: r.pin
+            ? `Entry PIN: ${r.pin}\n\nTraining session booked via DrFit.`
+            : "Training session booked via DrFit.",
+          alarms: [{ relativeOffset: -30 }],
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        added++;
+      }
+
+      Alert.alert(
+        "Added to Calendar",
+        `${added} session${added !== 1 ? "s" : ""} added to your DrFit calendar.`
+      );
+    } catch (e: any) {
+      Alert.alert("Export failed", e?.message ?? "Something went wrong. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  function openFeedback() {    setRating(0);
     setComment("");
     setFeedbackVisible(true);
   }
@@ -80,34 +162,53 @@ export default function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
-      >
-        <View className="px-6 pt-4 gap-6">
+    <>
+      <SafeAreaView className="flex-1 bg-neutral-100">
+        <View className="flex-1 px-6 pt-4 gap-6">
           {/* Header */}
-          <Text className="text-2xl font-unbounded text-black">Settings</Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-2xl font-unbounded text-black">Settings</Text>
+            <TouchableOpacity
+              className="bg-white border border-gray-200 rounded-full w-9 h-9 items-center justify-center"
+              onPress={handleLogout}
+              activeOpacity={0.7}
+            >
+              <LogOut size={16} color={Colors.danger} />
+            </TouchableOpacity>
+          </View>
 
           {/* User card */}
-          <View className="bg-white rounded-2xl p-5 gap-3 border border-gray-100">
+          <TouchableOpacity
+            className="bg-white rounded-2xl p-5 gap-3 border border-gray-100"
+            onPress={() => setProfileVisible(true)}
+            activeOpacity={0.7}
+          >
             <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
               Account
             </Text>
-            <View className="flex-row items-center gap-3">
-              <View className="bg-primary rounded-full w-12 h-12 items-center justify-center">
-                <Text className="text-black text-lg font-bold">
-                  {user?.name?.charAt(0) ?? "?"}
-                </Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-3">
+                <View className="w-12 h-12 rounded-full bg-gray-100 items-center justify-center overflow-hidden">
+                  {user?.avatarUrl ? (
+                    <Image
+                      source={{ uri: user.avatarUrl }}
+                      style={{ width: 48, height: 48 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Text className="text-black text-lg font-bold">
+                      {user?.name?.charAt(0) ?? "?"}
+                    </Text>
+                  )}
+                </View>
+                <View className="gap-0.5">
+                  <Text className="text-base font-semibold text-black">{user?.name}</Text>
+                  <Text className="text-sm text-gray-500">{user?.email}</Text>
+                </View>
               </View>
-              <View className="gap-0.5">
-                <Text className="text-base font-semibold text-black">
-                  {user?.name}
-                </Text>
-                <Text className="text-sm text-gray-500">{user?.email}</Text>
-              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
             </View>
-          </View>
+          </TouchableOpacity>
 
           {/* Home gym */}
           <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -121,8 +222,8 @@ export default function SettingsScreen() {
               onPress={() => setPickerVisible(true)}
               activeOpacity={0.7}
             >
-              <View className="bg-primary rounded-xl w-10 h-10 items-center justify-center">
-                <MapPin size={18} color={Colors.textPrimary} />
+              <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
+                <MapPin size={18} color={Colors.textSecondary} />
               </View>
               <View className="flex-1 gap-0.5">
                 <Text className="text-sm font-semibold text-black">
@@ -171,6 +272,38 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Calendar */}
+          <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <View className="px-5 pt-4 pb-2">
+              <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                Calendar
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="flex-row items-center gap-4 px-5 py-4"
+              onPress={handleExportToCalendar}
+              activeOpacity={0.7}
+              disabled={isExporting}
+            >
+              <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
+                {isExporting ? (
+                  <ActivityIndicator size="small" color={Colors.textSecondary} />
+                ) : (
+                  <CalendarDays size={18} color={Colors.textSecondary} strokeWidth={1.75} />
+                )}
+              </View>
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-black">
+                  Export Sessions
+                </Text>
+                <Text className="text-xs text-gray-500">
+                  Add upcoming sessions to Apple Calendar
+                </Text>
+              </View>
+              <ChevronRight size={16} color={Colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
           {/* Feedback */}
           <View className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             <View className="px-5 pt-4 pb-2">
@@ -193,25 +326,8 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Sign out */}
-          <TouchableOpacity
-            className="border border-gray-200 rounded-2xl py-4 flex-row items-center justify-center gap-2 bg-white"
-            onPress={handleLogout}
-            activeOpacity={0.8}
-          >
-            <LogOut size={16} color={Colors.danger} />
-            <Text className="text-sm font-semibold" style={{ color: Colors.danger }}>
-              Sign Out
-            </Text>
-          </TouchableOpacity>
-
-          <Text className="text-center text-xs text-gray-300">
-            DrFit v1.0.0
-          </Text>
         </View>
-      </ScrollView>
-
-      {/* ─── Feedback Modal ───────────────────────────────────────────────── */}
+      </SafeAreaView>
       <Modal
         visible={feedbackVisible}
         transparent
@@ -305,6 +421,15 @@ export default function SettingsScreen() {
         onSelect={setSelectedCenter}
         onClose={() => setPickerVisible(false)}
       />
-    </SafeAreaView>
+
+      <EditProfileSheet
+        visible={profileVisible}
+        user={user}
+        onClose={() => setProfileVisible(false)}
+        onUpdateProfile={updateProfile}
+        onChangePassword={changePassword}
+        onUploadAvatar={uploadAvatar}
+      />
+    </>
   );
 }
