@@ -9,6 +9,8 @@ export interface User {
   role: "client" | "admin";
   createdAt?: string;
   defaultCenter?: { id: string; name: string } | null;
+  avatarUrl?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export interface Center {

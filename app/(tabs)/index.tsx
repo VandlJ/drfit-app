@@ -1,20 +1,23 @@
 import { useState } from "react";
-import { ScrollView, View, Text, TouchableOpacity } from "react-native";
+import { ScrollView, View, Text, TouchableOpacity, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Plus, MapPin, ChevronDown, Wallet } from "lucide-react-native";
-import HeroCard from "@/components/HeroCard";
+import { Plus, Wallet, Dumbbell } from "lucide-react-native";
+import ActiveTimer from "@/components/ActiveTimer";
 import BookingCard from "@/components/BookingCard";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
 import ReservationDetailSheet from "@/components/ReservationDetailSheet";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { Colors } from "@/constants/colors";
+import { getHeroCardState } from "@/constants/types";
 import type { Reservation } from "@/constants/types";
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  // eslint-disable-next-line no-console
+  console.log("[Home] user.avatarUrl =", user?.avatarUrl);
   const {
     reservations,
     creditBalance,
@@ -34,11 +37,12 @@ export default function HomeScreen() {
         new Date(b.slot.date + "T" + b.slot.startTime).getTime()
     );
 
-  const heroReservation = activeReservations[0] ?? null;
+  const nextReservation = activeReservations[0] ?? null;
   const upcomingReservations = activeReservations.slice(1);
+  const isActiveNow = nextReservation && getHeroCardState(nextReservation) === "active_timer";
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -46,23 +50,36 @@ export default function HomeScreen() {
       >
         <View className="px-6 pt-4 gap-6">
           {/* Header */}
-          <View className="flex-row items-start justify-between">
-            <View className="gap-1">
-              <Text className="text-2xl font-unbounded text-black">
-                Hello, {user?.name?.split(" ")[0] ?? "there"}
-              </Text>
-              {/* Center switcher */}
-              <TouchableOpacity
-                className="flex-row items-center gap-1 mt-0.5"
-                onPress={() => setPickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <MapPin size={12} color={Colors.textSecondary} />
-                <Text className="text-sm font-medium text-gray-600">
-                  {selectedCenter.name}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-3 flex-1">
+              {/* Avatar */}
+              {user?.avatarUrl ? (
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  className="w-12 h-12 rounded-full"
+                  style={{ backgroundColor: Colors.primary }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View
+                  className="w-12 h-12 rounded-full items-center justify-center"
+                  style={{ backgroundColor: Colors.primary }}
+                >
+                  <Text className="text-black font-unbounded" style={{ fontSize: 18 }}>
+                    {(user?.name?.trim()?.[0] ?? "?").toUpperCase()}
+                  </Text>
+                </View>
+              )}
+
+              <View className="gap-0.5 flex-1">
+                <Text className="text-xs text-gray-400">Welcome back</Text>
+                <Text
+                  className="text-lg font-unbounded text-black"
+                  numberOfLines={1}
+                >
+                  {user?.name ?? "there"}
                 </Text>
-                <ChevronDown size={12} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              </View>
             </View>
 
             {/* Credits chip */}
@@ -73,24 +90,44 @@ export default function HomeScreen() {
             >
               <Wallet size={14} color={Colors.textSecondary} />
               <Text className="text-sm font-semibold text-black">
-                {creditBalance}
+                {creditBalance} <Text className="text-gray-400 font-normal">cr</Text>
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Hero card */}
-          <HeroCard
-            reservation={heroReservation}
-            onDetailsPress={heroReservation ? () => setSelectedReservation(heroReservation) : undefined}
-          />
-
-          {/* Upcoming */}
-          {upcomingReservations.length > 0 && (
+          {/* Reservations — active session timer (if running) + unified list */}
+          {isActiveNow && nextReservation ? (
+            <>
+              <ActiveTimer reservation={nextReservation} />
+              {upcomingReservations.length > 0 && (
+                <View className="gap-3">
+                  <Text className="text-xs font-bold uppercase tracking-widest text-gray-700">
+                    Upcoming
+                  </Text>
+                  <View className="gap-3">
+                    {upcomingReservations.map((r, idx) => (
+                      <BookingCard
+                        key={r.id}
+                        reservation={r}
+                        isNext={idx === 0}
+                        onPress={() => setSelectedReservation(r)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )}
+            </>
+          ) : nextReservation ? (
             <View className="gap-3">
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              <Text className="text-xs font-bold uppercase tracking-widest text-gray-700">
                 Upcoming
               </Text>
-              <View className="gap-2">
+              <View className="gap-3">
+                <BookingCard
+                  reservation={nextReservation}
+                  isNext
+                  onPress={() => setSelectedReservation(nextReservation)}
+                />
                 {upcomingReservations.map((r) => (
                   <BookingCard
                     key={r.id}
@@ -98,6 +135,21 @@ export default function HomeScreen() {
                     onPress={() => setSelectedReservation(r)}
                   />
                 ))}
+              </View>
+            </View>
+          ) : (
+            // Empty state
+            <View className="bg-white rounded-2xl p-6 border border-gray-100 items-center gap-4">
+              <View className="bg-neutral-100 rounded-full p-4">
+                <Dumbbell size={36} color={Colors.textMuted} strokeWidth={1.5} />
+              </View>
+              <View className="items-center gap-1">
+                <Text className="text-base font-semibold text-black">
+                  No upcoming sessions
+                </Text>
+                <Text className="text-sm text-gray-500 text-center">
+                  Book your next training to get started.
+                </Text>
               </View>
             </View>
           )}

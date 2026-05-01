@@ -11,7 +11,7 @@ export default function CreditsScreen() {
   const { creditBalance, transactions } = useData();
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -21,23 +21,23 @@ export default function CreditsScreen() {
           <Text className="text-2xl font-unbounded text-black">Credits</Text>
 
           {/* Balance card */}
-          <View className="bg-primary rounded-3xl p-6 gap-1">
-            <Text className="text-black/60 text-sm font-medium">
-              Your balance
+          <View className="bg-primary rounded-3xl p-6 gap-2">
+            <Text className="text-black/70 text-base font-semibold uppercase tracking-wider">
+              Your Balance
             </Text>
-            <Text className="text-black font-unbounded" style={{ fontSize: 52, lineHeight: 60 }}>
+            <Text className="text-black font-unbounded" style={{ fontSize: 64, lineHeight: 70 }}>
               {creditBalance.toLocaleString()}
             </Text>
-            <Text className="text-black/50 text-sm">credits</Text>
+            <Text className="text-black/60 text-sm font-medium">credits available</Text>
 
             <View className="mt-4">
               <TouchableOpacity
-                className="bg-black rounded-full py-3 px-6 flex-row items-center gap-2 self-start"
+                className="bg-white/90 rounded-full py-3 px-6 flex-row items-center gap-2 self-start border border-black/10"
                 onPress={() => router.push("/(tabs)/credits/topup")}
                 activeOpacity={0.85}
               >
-                <Plus size={16} color={Colors.primary} strokeWidth={2.5} />
-                <Text className="text-primary text-sm font-semibold">
+                <Plus size={16} color={Colors.textPrimary} strokeWidth={2.5} />
+                <Text className="text-black text-sm font-semibold">
                   Top Up
                 </Text>
               </TouchableOpacity>
@@ -46,7 +46,7 @@ export default function CreditsScreen() {
 
           {/* Transaction history */}
           <View className="gap-3">
-            <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <Text className="text-xs font-bold uppercase tracking-widest text-gray-700">
               Transaction History
             </Text>
 

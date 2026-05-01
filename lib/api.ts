@@ -152,6 +152,8 @@ export interface ApiUser {
   role: "client" | "admin";
   createdAt?: string;
   defaultCenter?: { id: string; name: string } | null;
+  avatarUrl?: string | null;
+  dateOfBirth?: string | null;
 }
 
 export async function apiLogin(
@@ -183,14 +185,17 @@ export async function apiLogout(refreshToken: string): Promise<void> {
 }
 
 export async function apiGetMe(): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/auth/me");
+  // Backend wraps the user in `{ user: {...} }` — unwrap here.
+  const res = await apiFetch<{ user: ApiUser } | ApiUser>("/me");
+  return "user" in res ? (res as { user: ApiUser }).user : (res as ApiUser);
 }
 
 export async function apiUpdateMe(defaultCenterId: string): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/auth/me", {
+  const res = await apiFetch<{ user: ApiUser } | ApiUser>("/me", {
     method: "PATCH",
     body: JSON.stringify({ defaultCenterId }),
   });
+  return "user" in res ? (res as { user: ApiUser }).user : (res as ApiUser);
 }
 
 // ─── Centers ─────────────────────────────────────────────────────────────────

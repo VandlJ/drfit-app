@@ -35,7 +35,38 @@ import { useWorkoutLiveActivity } from "@/hooks/useWorkoutLiveActivity";
 // ─── Dev flag: inject a fake "currently active" reservation ──────────────────
 // Set to true to simulate a workout in progress (start = now, end = +30 min)
 // for testing Live Activity / Dynamic Island. Remove before shipping.
-const INJECT_FAKE_ACTIVE_RESERVATION = true;
+const INJECT_FAKE_ACTIVE_RESERVATION = false;
+
+/**
+ * Backend may return Czech transaction descriptions (e.g. "Rezervace slotu …").
+ * Normalise to English for the UI. Falls back to a generic label per type.
+ */
+function translateTxDescription(
+  raw: string | null | undefined,
+  type: CreditTransaction["type"]
+): string {
+  const fallback: Record<CreditTransaction["type"], string> = {
+    spend: "Session booking",
+    topup: "Credit top-up",
+    refund: "Refund",
+    bonus: "Bonus credits",
+  };
+  if (!raw) return fallback[type];
+
+  // Czech → English replacements (preserves time / date suffixes).
+  let s = raw;
+  s = s.replace(/Rezervace slotu/gi, "Session booking");
+  s = s.replace(/Rezervace/gi, "Booking");
+  s = s.replace(/Vr[áa]cen[íi] kredit[uůů]?/gi, "Refund");
+  s = s.replace(/Dobit[íi] kredit[uů]/gi, "Credit top-up");
+  s = s.replace(/Top-?up bal[íi][čc]ek/gi, "Top-up package");
+  s = s.replace(/bal[íi][čc]ek/gi, "package");
+  s = s.replace(/Bonus(?:ov[ée])? kredity/gi, "Bonus credits");
+  s = s.replace(/Zru[šs]eno/gi, "Cancelled");
+  s = s.replace(/(\d+)\s*kredit[uůyů]?/gi, "$1 credits");
+  s = s.replace(/\bza\b/gi, "for");
+  return s;
+}
 
 function buildFakeActiveReservation(centerName: string, centerId: string): Reservation {
   const now = new Date();
@@ -154,6 +185,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         imageUrl: c.imageUrl,
       }));
 
+      console.log("[Data] centers from API:", apiCenters.map((c) => ({ id: c.id, name: c.name, imageUrl: c.imageUrl })));
+
       setCenters(mappedCenters);
       // Default to first center (will be overridden by user defaultCenter later)
       setSelectedCenterState((prev) => prev ?? mappedCenters[0] ?? null);
@@ -194,7 +227,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         id: t.id,
         amount: t.amount,
         type: normaliseTransactionType(t.type),
-        description: t.description,
+        description: translateTxDescription(t.description, normaliseTransactionType(t.type)),
         referenceId: t.referenceId,
         createdAt: t.createdAt,
       }));
@@ -315,12 +348,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   // ── Top up credits (optimistic for now — Stripe flow wires in later) ──────
   const topUpCredits = useCallback(async (pkg: CreditPackage) => {
-    // The real Stripe flow will call apiCreateTopupIntent → confirm PaymentIntent
-    // → backend webhook updates balance. For now we just refresh after simulated delay.
-    await new Promise((r) => setTimeout(r, 800));
-    const newBalance = await apiGetCreditBalance();
-    setCreditBalance(newBalance);
-  }, []);
+    // Stripe webhook may take a moment to credit the account after payment confirmation.
+    // Poll the balance for up to ~5 s, refresh as soon as we see the change.
+    const before = creditBalance;
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 800));
+      try {
+        const b = await apiGetCreditBalance();
+        setCreditBalance(b);
+        if (b > before) return; // webhook applied — done
+      } catch {}
+    }
+  }, [creditBalance]);
 
   // ── Manually refresh balance ───────────────────────────────────────────────
   const refreshBalance = useCallback(async () => {

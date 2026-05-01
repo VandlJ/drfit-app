@@ -32,7 +32,10 @@ type LiveActivityInstance = {
 };
 
 let WorkoutActivity:
-  | { start: (props: any, url?: string) => LiveActivityInstance }
+  | {
+      start: (props: any, url?: string) => LiveActivityInstance;
+      getInstances: () => LiveActivityInstance[];
+    }
   | null = null;
 
 try {
@@ -45,6 +48,15 @@ try {
 }
 
 const WIDGETS_SUPPORTED = Platform.OS === "ios" && WorkoutActivity != null;
+
+// Helper: end a Live Activity instance, swallowing both sync throws and
+// promise rejections (the OS may have already terminated the activity).
+function safeEnd(inst: LiveActivityInstance | null | undefined, policy: string) {
+  if (!inst) return;
+  try {
+    Promise.resolve(inst.end(policy)).catch(() => {});
+  } catch {}
+}
 
 function findActiveReservation(reservations: Reservation[]): Reservation | null {
   return (
@@ -66,6 +78,18 @@ export function useWorkoutLiveActivity(reservations: Reservation[]) {
   useEffect(() => {
     if (!WIDGETS_SUPPORTED) return;
 
+    // Defensive cleanup: end any orphan Live Activities left over from a
+    // previous app run (e.g. after a hard restart while one was active).
+    try {
+      const orphans = WorkoutActivity!.getInstances?.() ?? [];
+      if (orphans.length > 0) {
+        console.log("[LiveActivity] Cleaning up orphans:", orphans.length);
+        orphans.forEach((inst) => safeEnd(inst, "immediate"));
+      }
+    } catch (e) {
+      console.warn("[LiveActivity] orphan cleanup failed:", e);
+    }
+
     const tick = () => {
       const active = findActiveReservation(reservations);
 
@@ -73,9 +97,7 @@ export function useWorkoutLiveActivity(reservations: Reservation[]) {
       if (active && activeReservationId.current !== active.id) {
         // Start a new live activity (end any stale one first)
         console.log("[LiveActivity] Starting for reservation:", active.id);
-        try {
-          activeInstance.current?.end("immediate");
-        } catch {}
+        safeEnd(activeInstance.current, "immediate");
         try {
           const start = getSlotStartDate(active.slot);
           const end = getSlotEndDate(active.slot);
@@ -97,9 +119,7 @@ export function useWorkoutLiveActivity(reservations: Reservation[]) {
         }
       } else if (!active && activeReservationId.current) {
         // End the live activity
-        try {
-          activeInstance.current?.end("default");
-        } catch {}
+        safeEnd(activeInstance.current, "default");
         activeInstance.current = null;
         activeReservationId.current = null;
         activeProps.current = null;
@@ -109,18 +129,28 @@ export function useWorkoutLiveActivity(reservations: Reservation[]) {
         // label rather than `timerInterval`). 30s gives roughly minute-level
         // accuracy without burning the system update budget.
         if (Date.now() - lastRefreshAt.current >= 30_000) {
-          try {
-            // iOS skips updates when ContentState equality matches, so we
-            // bump a `_tick` field to force a re-render every cycle.
-            activeInstance.current.update({
+          const inst = activeInstance.current;
+          // iOS skips updates when ContentState equality matches, so we
+          // bump a `_tick` field to force a re-render every cycle.
+          Promise.resolve(
+            inst.update({
               ...activeProps.current,
               _tick: Date.now(),
+            })
+          )
+            .then(() => {
+              lastRefreshAt.current = Date.now();
+            })
+            .catch((e) => {
+              // Live Activity was killed by the OS or user — drop the stale
+              // reference so the next tick can start a fresh one.
+              console.warn("[LiveActivity] refresh failed, resetting:", e?.message ?? e);
+              if (activeInstance.current === inst) {
+                activeInstance.current = null;
+                activeReservationId.current = null;
+                activeProps.current = null;
+              }
             });
-            lastRefreshAt.current = Date.now();
-            console.log("[LiveActivity] Refreshed");
-          } catch (e) {
-            console.warn("[LiveActivity] refresh failed:", e);
-          }
         }
       }
     };
@@ -134,9 +164,7 @@ export function useWorkoutLiveActivity(reservations: Reservation[]) {
   useEffect(() => {
     return () => {
       if (!WIDGETS_SUPPORTED) return;
-      try {
-        activeInstance.current?.end("immediate");
-      } catch {}
+      safeEnd(activeInstance.current, "immediate");
       activeInstance.current = null;
       activeReservationId.current = null;
     };

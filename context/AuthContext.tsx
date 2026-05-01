@@ -73,6 +73,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(accessToken);
           // Fetch user profile — if token is expired, auto-refresh happens in apiFetch
           const me = await apiGetMe();
+          // eslint-disable-next-line no-console
+          console.log("[Auth] /me payload after unwrap:", JSON.stringify(me));
           setUser(me);
           // Register push token (best-effort — don't block restore)
           registerPushToken();
