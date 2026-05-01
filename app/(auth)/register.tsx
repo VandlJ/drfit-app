@@ -56,7 +56,7 @@ export default function RegisterScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
         >
-          <View className="flex-1 px-6 justify-center gap-8 py-10">
+          <View className="flex-1 px-6 gap-8 pt-10 pb-10">
             {/* Header */}
             <View className="gap-2">
               <TouchableOpacity
@@ -86,6 +86,7 @@ export default function RegisterScreen() {
                 outlineColor={Colors.border}
                 activeOutlineColor={Colors.textPrimary}
                 style={{ backgroundColor: Colors.surface }}
+                theme={{ roundness: 14 }}
               />
               <TextInput
                 label="Email"
@@ -98,6 +99,7 @@ export default function RegisterScreen() {
                 outlineColor={Colors.border}
                 activeOutlineColor={Colors.textPrimary}
                 style={{ backgroundColor: Colors.surface }}
+                theme={{ roundness: 14 }}
               />
               <TextInput
                 label="Password"
@@ -110,6 +112,7 @@ export default function RegisterScreen() {
                 outlineColor={Colors.border}
                 activeOutlineColor={Colors.textPrimary}
                 style={{ backgroundColor: Colors.surface }}
+                theme={{ roundness: 14 }}
                 right={
                   <TextInput.Icon
                     icon={() =>

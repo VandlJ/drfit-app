@@ -83,13 +83,11 @@ export default function WeekCalendar({
               >
                 {day.dayNum}
               </Text>
-              {/* Available dot */}
+              {/* Available dot — visible on any date with slots */}
               <View
                 className={`w-1.5 h-1.5 rounded-full ${
-                  isSelected
-                    ? "bg-black opacity-30"
-                    : hasSlots
-                    ? "bg-primary"
+                  hasSlots
+                    ? isSelected ? "bg-black opacity-40" : "bg-primary"
                     : "bg-transparent"
                 }`}
               />

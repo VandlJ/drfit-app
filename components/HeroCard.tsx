@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Lock, Unlock, Copy, Dumbbell, MapPin } from "lucide-react-native";
+import { Lock, Unlock, Copy, Dumbbell, MapPin, ChevronRight } from "lucide-react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import ActiveTimer from "./ActiveTimer";
 import { Colors } from "@/constants/colors";
@@ -11,9 +11,10 @@ import { getHeroCardState, formatDate } from "@/constants/types";
 
 interface HeroCardProps {
   reservation: Reservation | null;
+  onDetailsPress?: () => void;
 }
 
-export default function HeroCard({ reservation }: HeroCardProps) {
+export default function HeroCard({ reservation, onDetailsPress }: HeroCardProps) {
   const router = useRouter();
   const state = getHeroCardState(reservation);
   const [pinRevealed, setPinRevealed] = useState(false);
@@ -95,11 +96,21 @@ export default function HeroCard({ reservation }: HeroCardProps) {
     <View className="bg-white rounded-2xl p-5 border border-gray-100 gap-4">
       {/* Status badge */}
       <View className="flex-row items-center justify-between">
-        <View className="bg-primary rounded-full px-3 py-1">
-          <Text className="text-black text-xs font-semibold uppercase tracking-wider">
+        <View className="rounded-full px-3 py-1" style={{ backgroundColor: Colors.primaryLight }}>
+          <Text className="text-xs font-semibold uppercase tracking-wider text-black">
             Next Session
           </Text>
         </View>
+        {onDetailsPress && (
+          <TouchableOpacity
+            className="flex-row items-center gap-0.5"
+            onPress={onDetailsPress}
+            activeOpacity={0.7}
+          >
+            <Text className="text-xs font-semibold text-gray-400">Details</Text>
+            <ChevronRight size={13} color={Colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Date & time */}
@@ -157,7 +168,9 @@ export default function HeroCard({ reservation }: HeroCardProps) {
                 ••••••
               </Text>
             )}
-            <Text className="text-xs text-gray-400">Tap to reveal</Text>
+            <View className="bg-primary rounded-full px-3 py-1 mt-0.5">
+              <Text className="text-xs font-semibold text-black">Tap to reveal</Text>
+            </View>
           </View>
         )}
       </TouchableOpacity>
