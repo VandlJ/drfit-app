@@ -1,7 +1,7 @@
 # Context & Guidelines: DrFit Hackathon App
 
 ## Tech Stack
-- Expo SDK: 54 (Latest)
+- Expo SDK: 55 (Latest)
 - React Native: 0.81.5
 - React: 19.1.0
 - Engine: New Architecture (Fabric) is ENABLED.
