@@ -1,13 +1,18 @@
 import "../suppress-logs";
 import "../global.css";
 
-import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { MD3LightTheme, PaperProvider } from "react-native-paper";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StripeProvider } from "@stripe/stripe-react-native";
 import Constants from "expo-constants";
+import {
+  useFonts,
+  Unbounded_400Regular,
+  Unbounded_500Medium,
+  Unbounded_700Bold,
+} from "@expo-google-fonts/unbounded";
 import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 import { Colors } from "@/constants/colors";
@@ -28,6 +33,13 @@ const stripeKey =
   "";
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Unbounded_400Regular,
+    Unbounded_500Medium,
+    Unbounded_700Bold,
+  });
+
+  // Render app even if fonts are still loading — system font used as fallback
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StripeProvider

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Dumbbell, MapPin, ChevronRight } from "lucide-react-native";
+import { Dumbbell, MapPin, ChevronRight, CalendarDays, KeyRound, Timer } from "lucide-react-native";
 import { useData } from "@/context/DataContext";
 import { Colors } from "@/constants/colors";
 import type { Center } from "@/constants/types";
@@ -28,10 +28,10 @@ export default function OnboardingScreen() {
           {/* Hero */}
           <View className="items-center gap-6">
             <View className="bg-primary rounded-3xl p-6">
-              <Dumbbell size={56} color={Colors.textInverse} strokeWidth={1.5} />
+              <Dumbbell size={56} color={Colors.textPrimary} strokeWidth={1.5} />
             </View>
             <View className="items-center gap-3">
-              <Text className="text-4xl font-bold text-gray-900 tracking-tight">
+              <Text className="text-5xl font-unbounded text-black tracking-tight">
                 DrFit
               </Text>
               <Text className="text-base text-gray-500 text-center leading-relaxed max-w-xs">
@@ -40,16 +40,20 @@ export default function OnboardingScreen() {
               </Text>
             </View>
             <View className="gap-3 w-full mt-4">
-              {[
-                { icon: "🗓", text: "Book sessions in seconds" },
-                { icon: "🔑", text: "PIN delivered right before your slot" },
-                { icon: "⏱", text: "Live training timer" },
-              ].map((item) => (
+              {(
+                [
+                  { Icon: CalendarDays, text: "Book sessions in seconds" },
+                  { Icon: KeyRound, text: "PIN delivered right before your slot" },
+                  { Icon: Timer, text: "Live training timer" },
+                ] as const
+              ).map((item) => (
                 <View
                   key={item.text}
-                  className="flex-row items-center gap-3 bg-white rounded-2xl px-4 py-3"
+                  className="flex-row items-center gap-3 bg-white rounded-2xl px-4 py-3 border border-gray-100"
                 >
-                  <Text className="text-xl">{item.icon}</Text>
+                  <View className="bg-primary rounded-xl w-8 h-8 items-center justify-center">
+                    <item.Icon size={16} color={Colors.textPrimary} strokeWidth={1.75} />
+                  </View>
                   <Text className="text-sm font-medium text-gray-700">
                     {item.text}
                   </Text>
@@ -65,7 +69,7 @@ export default function OnboardingScreen() {
               onPress={() => setStep(1)}
               activeOpacity={0.85}
             >
-              <Text className="text-white text-base font-semibold">
+              <Text className="text-black text-base font-semibold">
                 Get Started
               </Text>
             </TouchableOpacity>
@@ -88,12 +92,12 @@ export default function OnboardingScreen() {
         <View className="gap-6">
           {/* Icon + title */}
           <View className="items-center gap-4">
-            <View className="bg-primary-light rounded-3xl p-5">
-              <MapPin size={40} color={Colors.primary} strokeWidth={1.5} />
+            <View className="bg-primary rounded-3xl p-5">
+              <MapPin size={40} color={Colors.textPrimary} strokeWidth={1.5} />
             </View>
             <View className="items-center gap-2">
-              <Text className="text-2xl font-bold text-gray-900 text-center">
-                Vyber své fitness centrum
+              <Text className="text-2xl font-unbounded text-black text-center">
+                Vyber centrum
               </Text>
               <Text className="text-sm text-gray-500 text-center">
                 Toto bude tvůj domovský gym. Kdykoli ho můžeš změnit v nastavení.
@@ -112,24 +116,24 @@ export default function OnboardingScreen() {
                   activeOpacity={0.7}
                   className={`flex-row items-center gap-4 p-4 rounded-2xl border-2 ${
                     isSelected
-                      ? "border-primary bg-green-50"
+                      ? "border-primary bg-primary-light"
                       : "border-gray-200 bg-white"
                   }`}
                 >
                   <View
                     className={`rounded-xl p-3 ${
-                      isSelected ? "bg-primary-light" : "bg-gray-100"
+                      isSelected ? "bg-primary" : "bg-gray-100"
                     }`}
                   >
                     <MapPin
                       size={22}
-                      color={isSelected ? Colors.primary : Colors.textSecondary}
+                      color={isSelected ? Colors.textPrimary : Colors.textSecondary}
                     />
                   </View>
                   <View className="flex-1 gap-0.5">
                     <Text
                       className={`text-base font-semibold ${
-                        isSelected ? "text-primary" : "text-gray-900"
+                        isSelected ? "text-black" : "text-gray-900"
                       }`}
                     >
                       {center.name}
@@ -140,7 +144,7 @@ export default function OnboardingScreen() {
                   </View>
                   {isSelected && (
                     <View className="bg-primary rounded-full w-6 h-6 items-center justify-center">
-                      <Text className="text-white text-xs font-bold">✓</Text>
+                      <Text className="text-black text-xs font-bold">✓</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -156,10 +160,10 @@ export default function OnboardingScreen() {
             onPress={handleContinue}
             activeOpacity={0.85}
           >
-            <Text className="text-white text-base font-semibold">
+            <Text className="text-black text-base font-semibold">
               Pokračovat
             </Text>
-            <ChevronRight size={18} color="#fff" strokeWidth={2.5} />
+            <ChevronRight size={18} color={Colors.textPrimary} strokeWidth={2.5} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setStep(0)} className="py-2 items-center">
             <Text className="text-sm text-gray-400">← Zpět</Text>

@@ -10,31 +10,31 @@ interface TransactionItemProps {
 const TYPE_CONFIG = {
   topup: {
     icon: ArrowDownLeft,
-    bg: "bg-green-100",
-    iconColor: Colors.primary,
-    amountStyle: "text-primary",
-    prefix: "+",
+    bg: "bg-primary-light",
+    iconColor: Colors.textPrimary,
+    amountPrefix: "+",
+    amountColor: Colors.textPrimary,
   },
   spend: {
     icon: ArrowUpRight,
     bg: "bg-gray-100",
     iconColor: Colors.textSecondary,
-    amountStyle: "text-gray-900",
-    prefix: "",
+    amountPrefix: "",
+    amountColor: Colors.textPrimary,
   },
   refund: {
     icon: RotateCcw,
     bg: "bg-blue-100",
     iconColor: Colors.info,
-    amountStyle: "text-blue-600",
-    prefix: "+",
+    amountPrefix: "+",
+    amountColor: Colors.info,
   },
   bonus: {
     icon: Gift,
     bg: "bg-yellow-100",
     iconColor: Colors.warning,
-    amountStyle: "text-yellow-600",
-    prefix: "+",
+    amountPrefix: "+",
+    amountColor: Colors.warning,
   },
 } as const;
 
@@ -67,7 +67,7 @@ export default function TransactionItem({ tx }: TransactionItemProps) {
       {/* Description */}
       <View className="flex-1 gap-0.5">
         <Text
-          className="text-sm font-medium text-gray-900"
+          className="text-sm font-medium text-black"
           numberOfLines={1}
         >
           {tx.description}
@@ -78,9 +78,11 @@ export default function TransactionItem({ tx }: TransactionItemProps) {
       </View>
 
       {/* Amount */}
-      <Text className={`text-sm font-semibold ${config.amountStyle}`}>
-        {prefix}
-        {absAmount.toLocaleString()} cr
+      <Text
+        className="text-sm font-semibold"
+        style={{ color: config.amountColor }}
+      >
+        {prefix}{absAmount.toLocaleString()} cr
       </Text>
     </View>
   );

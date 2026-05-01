@@ -1,8 +1,20 @@
-import { Tabs } from "expo-router";
+import { useEffect } from "react";
+import { Tabs, useRouter } from "expo-router";
 import { Home, CalendarPlus, Wallet, Clock, Settings } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
+import { useAuth } from "@/context/AuthContext";
 
 export default function TabsLayout() {
+  const router = useRouter();
+  const { token, isLoading } = useAuth();
+
+  // Redirect to onboarding when user logs out
+  useEffect(() => {
+    if (!isLoading && token === null) {
+      router.replace("/(auth)/onboarding");
+    }
+  }, [token, isLoading]);
+
   return (
     <Tabs
       screenOptions={{

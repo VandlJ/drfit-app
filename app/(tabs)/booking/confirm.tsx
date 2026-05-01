@@ -4,26 +4,25 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, CalendarCheck, Wallet, MapPin } from "lucide-react-native";
 import { useData } from "@/context/DataContext";
-import { getMockSlotsForDate } from "@/constants/mock";
 import { formatDate } from "@/constants/types";
 import { Colors } from "@/constants/colors";
 
 export default function ConfirmScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ date: string; slotIdx: string }>();
-  const { addReservation, creditBalance, selectedCenter } = useData();
+  const params = useLocalSearchParams<{ slotId: string; date: string }>();
+  const { addReservation, creditBalance, selectedCenter, getSlotsForDate } = useData();
   const [isLoading, setIsLoading] = useState(false);
 
-  const slot = getMockSlotsForDate(params.date, selectedCenter.id)[
-    Number(params.slotIdx)
-  ];
+  // Look up the slot from the in-memory cache (already fetched by booking/index.tsx)
+  const slots = getSlotsForDate(params.date);
+  const slot = slots.find((s) => s.id === params.slotId);
 
   if (!slot) {
     return (
       <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center">
         <Text className="text-gray-500">Slot not found.</Text>
         <TouchableOpacity onPress={() => router.back()} className="mt-4">
-          <Text className="text-primary">Go back</Text>
+          <Text className="text-black font-semibold">Go back</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
@@ -36,7 +35,7 @@ export default function ConfirmScreen() {
     if (!canAfford) return;
     setIsLoading(true);
     try {
-      await addReservation(slot);
+      await addReservation(slot!); // slot is always defined here — guarded by early return above
       router.replace("/(tabs)");
     } catch (err: any) {
       Alert.alert("Booking failed", err.message ?? "Please try again.");
@@ -61,22 +60,22 @@ export default function ConfirmScreen() {
             >
               <ChevronLeft size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">
-              Confirm Booking
+            <Text className="text-xl font-unbounded text-black">
+              Confirm
             </Text>
           </View>
 
           {/* Session card */}
-          <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100 shadow-sm">
+          <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100">
             <View className="flex-row items-center gap-3">
-              <View className="bg-primary-light rounded-xl w-12 h-12 items-center justify-center">
-                <CalendarCheck size={22} color={Colors.primary} />
+              <View className="bg-primary rounded-xl w-12 h-12 items-center justify-center">
+                <CalendarCheck size={22} color={Colors.textPrimary} />
               </View>
               <View className="gap-0.5">
                 <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
                   Training Session
                 </Text>
-                <Text className="text-lg font-bold text-gray-900">
+                <Text className="text-lg font-bold text-black">
                   {formatDate(slot.date)}
                 </Text>
               </View>
@@ -90,8 +89,8 @@ export default function ConfirmScreen() {
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-gray-500">Location</Text>
                 <View className="flex-row items-center gap-1">
-                  <MapPin size={12} color={Colors.primary} />
-                  <Text className="text-sm text-gray-900 font-medium">
+                  <MapPin size={12} color={Colors.textSecondary} />
+                  <Text className="text-sm text-black font-medium">
                     {selectedCenter.name}
                   </Text>
                 </View>
@@ -101,12 +100,12 @@ export default function ConfirmScreen() {
           </View>
 
           {/* Payment summary */}
-          <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100 shadow-sm">
+          <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100">
             <View className="flex-row items-center gap-3">
-              <View className="bg-primary-light rounded-xl w-12 h-12 items-center justify-center">
-                <Wallet size={22} color={Colors.primary} />
+              <View className="bg-primary rounded-xl w-12 h-12 items-center justify-center">
+                <Wallet size={22} color={Colors.textPrimary} />
               </View>
-              <Text className="text-base font-bold text-gray-900">Payment</Text>
+              <Text className="text-base font-bold text-black">Payment</Text>
             </View>
 
             <View className="h-px bg-gray-100" />
@@ -118,18 +117,18 @@ export default function ConfirmScreen() {
               <Row
                 label="Balance after"
                 value={`${balanceAfter} credits`}
-                valueStyle={
-                  balanceAfter < 0
-                    ? "text-red-600 font-bold"
-                    : "text-primary font-bold"
-                }
+                valueStyle={balanceAfter < 0 ? "font-bold" : "font-bold text-black"}
+                valueColor={balanceAfter < 0 ? Colors.danger : undefined}
               />
             </View>
           </View>
 
           {!canAfford && (
-            <View className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <Text className="text-sm text-red-700">
+            <View
+              className="border rounded-xl px-4 py-3"
+              style={{ backgroundColor: Colors.dangerLight, borderColor: Colors.danger + "44" }}
+            >
+              <Text className="text-sm" style={{ color: Colors.danger }}>
                 Not enough credits. Top up in the Credits tab first.
               </Text>
             </View>
@@ -145,7 +144,7 @@ export default function ConfirmScreen() {
           >
             <Text
               className={`text-base font-semibold ${
-                canAfford && !isLoading ? "text-white" : "text-gray-400"
+                canAfford && !isLoading ? "text-black" : "text-gray-400"
               }`}
             >
               {isLoading ? "Booking..." : "Confirm Booking"}
@@ -161,15 +160,22 @@ function Row({
   label,
   value,
   valueStyle,
+  valueColor,
 }: {
   label: string;
   value: string;
   valueStyle?: string;
+  valueColor?: string;
 }) {
   return (
     <View className="flex-row items-center justify-between">
       <Text className="text-sm text-gray-500">{label}</Text>
-      <Text className={`text-sm text-gray-900 ${valueStyle ?? ""}`}>{value}</Text>
+      <Text
+        className={`text-sm text-black ${valueStyle ?? ""}`}
+        style={valueColor ? { color: valueColor } : undefined}
+      >
+        {value}
+      </Text>
     </View>
   );
 }

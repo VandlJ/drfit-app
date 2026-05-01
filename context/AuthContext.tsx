@@ -5,12 +5,39 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as LocalAuthentication from "expo-local-authentication";
-import { MOCK_USER, DEMO_EMAIL, DEMO_PASSWORD } from "@/constants/mock";
+import * as Notifications from "expo-notifications";
+import {
+  apiLogin,
+  apiLogout,
+  apiGetMe,
+  apiRegisterPushToken,
+  getStoredTokens,
+  storeTokens,
+  clearTokens,
+} from "@/lib/api";
 import type { User } from "@/constants/types";
 
-const JWT_KEY = "drfit_jwt";
+// ─── Push token registration (best-effort) ────────────────────────────────────
+
+async function registerPushToken(): Promise<void> {
+  try {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") return;
+
+    // getExpoPushTokenAsync reads projectId from app.json automatically in managed workflow
+    const tokenData = await Notifications.getExpoPushTokenAsync();
+    await apiRegisterPushToken(
+      tokenData.data,
+      Platform.OS === "android" ? "android" : "ios"
+    );
+  } catch {
+    // Best-effort — never block login on push token failure (Expo Go, simulator)
+  }
+}
+
 const FACE_ID_KEY = "drfit_faceid_enabled";
 
 interface AuthContextValue {
@@ -20,7 +47,7 @@ interface AuthContextValue {
   isFaceIDEnabled: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  enableFaceID: () => Promise<void>;
+  enableFaceID: () => Promise<boolean>;
   disableFaceID: () => Promise<void>;
   authenticateWithFaceID: () => Promise<boolean>;
 }
@@ -33,21 +60,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isFaceIDEnabled, setIsFaceIDEnabled] = useState(false);
 
-  // Restore session from SecureStore on app launch
+  // Restore session on cold start
   useEffect(() => {
     async function restore() {
       try {
-        const storedToken = await SecureStore.getItemAsync(JWT_KEY);
+        const { accessToken } = await getStoredTokens();
         const faceIDPref = await SecureStore.getItemAsync(FACE_ID_KEY);
-        if (storedToken) {
-          // In production: validate token with GET /auth/me
-          // For now: assume token is valid and restore mock user
-          setToken(storedToken);
-          setUser(MOCK_USER);
+        if (accessToken) {
+          setToken(accessToken);
+          // Fetch user profile — if token is expired, auto-refresh happens in apiFetch
+          const me = await apiGetMe();
+          setUser(me);
+          // Register push token (best-effort — don't block restore)
+          registerPushToken();
         }
         setIsFaceIDEnabled(faceIDPref === "true");
       } catch {
-        // SecureStore not available (e.g. Expo Go without dev build)
+        // Token invalid / network error — start fresh
+        await clearTokens();
+        setToken(null);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -56,32 +88,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    // Mock auth — replace with POST /auth/login when backend is ready
-    if (email !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
-      throw new Error("Invalid email or password.");
-    }
-    const mockToken = "mock-jwt-token-" + Date.now();
-    await SecureStore.setItemAsync(JWT_KEY, mockToken);
-    setToken(mockToken);
-    setUser(MOCK_USER);
+    const data = await apiLogin(email, password);
+    await storeTokens(data.accessToken, data.refreshToken);
+    setToken(data.accessToken);
+    setUser(data.user);
+    // Register push token after fresh login (best-effort)
+    registerPushToken();
   }, []);
 
   const logout = useCallback(async () => {
-    await SecureStore.deleteItemAsync(JWT_KEY);
-    setToken(null);
-    setUser(null);
+    try {
+      const { refreshToken } = await getStoredTokens();
+      if (refreshToken) await apiLogout(refreshToken);
+    } catch {
+      // Best-effort — clear local state regardless
+    } finally {
+      await clearTokens();
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
-  const enableFaceID = useCallback(async () => {
+  const enableFaceID = useCallback(async (): Promise<boolean> => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       if (hasHardware && isEnrolled) {
         await SecureStore.setItemAsync(FACE_ID_KEY, "true");
         setIsFaceIDEnabled(true);
+        return true;
       }
+      return false;
     } catch {
-      // Not available in Expo Go — silently skip
+      return false;
     }
   }, []);
 
@@ -96,7 +135,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!hasHardware) return false;
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
       if (!isEnrolled) return false;
-
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: "Sign in to DrFit",
         disableDeviceFallback: false,

@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { useState, useMemo, useEffect } from "react";
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { MapPin, ChevronDown } from "lucide-react-native";
+import { MapPin, ChevronDown, Wallet } from "lucide-react-native";
 import WeekCalendar from "@/components/WeekCalendar";
 import SlotList from "@/components/SlotList";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
@@ -16,16 +16,41 @@ function getTodayKey(): string {
 
 export default function BookingScreen() {
   const router = useRouter();
-  const { getSlotsForDate, creditBalance, centers, selectedCenter, setSelectedCenter } =
-    useData();
+  const {
+    getSlotsForDate,
+    fetchSlotsForDate,
+    creditBalance,
+    centers,
+    selectedCenter,
+    setSelectedCenter,
+  } = useData();
 
   const [selectedDate, setSelectedDate] = useState<string>(getTodayKey());
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [isFetchingSlots, setIsFetchingSlots] = useState(false);
+
+  // Fetch slots whenever date or center changes
+  useEffect(() => {
+    if (!selectedCenter?.id) return;
+    setIsFetchingSlots(true);
+    fetchSlotsForDate(selectedDate).finally(() => setIsFetchingSlots(false));
+  }, [selectedDate, selectedCenter?.id]);
+
+  // Pre-fetch next 7 days for the availability dots
+  useEffect(() => {
+    if (!selectedCenter?.id) return;
+    const today = new Date();
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      fetchSlotsForDate(d.toISOString().split("T")[0]);
+    }
+  }, [selectedCenter?.id]);
 
   const slots = useMemo(
     () => getSlotsForDate(selectedDate),
-    [selectedDate, getSlotsForDate]
+    [selectedDate, getSlotsForDate, selectedCenter?.id]
   );
 
   const availableDates = useMemo<Set<string>>(() => {
@@ -39,7 +64,7 @@ export default function BookingScreen() {
       if (daySlots.some((s) => s.isAvailable)) set.add(key);
     }
     return set;
-  }, [getSlotsForDate]);
+  }, [getSlotsForDate, selectedCenter?.id]);
 
   function handleSelectDate(date: string) {
     setSelectedDate(date);
@@ -63,10 +88,7 @@ export default function BookingScreen() {
 
     router.push({
       pathname: "/(tabs)/booking/confirm",
-      params: {
-        date: selectedSlot.date,
-        slotIdx: slots.findIndex((s) => s.id === selectedSlot.id).toString(),
-      },
+      params: { slotId: selectedSlot.id, date: selectedSlot.date },
     });
   }
 
@@ -75,21 +97,32 @@ export default function BookingScreen() {
       <View className="flex-1 gap-4 pt-4">
         {/* Header */}
         <View className="px-6 gap-1">
-          <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            DrFit
-          </Text>
-          <Text className="text-2xl font-bold text-gray-900">Book a Session</Text>
+          <View className="flex-row items-center justify-between">
+            <Text className="text-2xl font-unbounded text-black">Book</Text>
+            {/* Credits chip */}
+            <TouchableOpacity
+              className="bg-white border border-gray-200 rounded-full px-3 py-2 flex-row items-center gap-1.5"
+              onPress={() => router.push("/(tabs)/credits")}
+              activeOpacity={0.7}
+            >
+              <Wallet size={14} color={Colors.textSecondary} />
+              <Text className="text-sm font-semibold text-black">
+                {creditBalance}
+              </Text>
+              <Text className="text-xs text-gray-400">cr</Text>
+            </TouchableOpacity>
+          </View>
           {/* Center switcher */}
           <TouchableOpacity
             className="flex-row items-center gap-1 mt-0.5 self-start"
             onPress={() => setPickerVisible(true)}
             activeOpacity={0.7}
           >
-            <MapPin size={12} color={Colors.primary} />
-            <Text className="text-sm font-medium text-primary">
+            <MapPin size={12} color={Colors.textSecondary} />
+            <Text className="text-sm font-medium text-gray-600">
               {selectedCenter.name}
             </Text>
-            <ChevronDown size={12} color={Colors.primary} />
+            <ChevronDown size={12} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -102,9 +135,14 @@ export default function BookingScreen() {
 
         {/* Slot list */}
         <View className="flex-1 gap-3">
-          <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 px-6">
-            Available Times
-          </Text>
+          <View className="flex-row items-center gap-2 px-6">
+            <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+              Available Times
+            </Text>
+            {isFetchingSlots && (
+              <ActivityIndicator size="small" color={Colors.textMuted} />
+            )}
+          </View>
           <SlotList
             slots={slots}
             selectedSlotId={selectedSlot?.id ?? null}
@@ -120,7 +158,7 @@ export default function BookingScreen() {
             <Text className="text-sm text-gray-500">
               {selectedSlot.startTime} – {selectedSlot.endTime}
             </Text>
-            <Text className="text-sm font-semibold text-gray-900">
+            <Text className="text-sm font-semibold text-black">
               {selectedSlot.priceCredits} credits
             </Text>
           </View>
@@ -129,7 +167,7 @@ export default function BookingScreen() {
             onPress={handleProceed}
             activeOpacity={0.85}
           >
-            <Text className="text-white text-base font-semibold">Continue</Text>
+            <Text className="text-black text-base font-semibold">Continue</Text>
           </TouchableOpacity>
         </View>
       )}

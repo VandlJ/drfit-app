@@ -41,11 +41,11 @@ export default function ActiveTimer({ reservation }: ActiveTimerProps) {
   const timeLabel = `${padTwo(minutes)}:${padTwo(seconds)}`;
 
   return (
-    <View className="bg-white rounded-2xl p-5 gap-4 shadow-sm border border-gray-100">
+    <View className="bg-white rounded-2xl p-5 gap-4 border border-gray-100">
       {/* Header */}
       <View className="flex-row items-center gap-2">
-        <View className="bg-primary-light rounded-full px-3 py-1">
-          <Text className="text-primary text-xs font-semibold uppercase tracking-wider">
+        <View className="bg-primary rounded-full px-3 py-1">
+          <Text className="text-black text-xs font-semibold uppercase tracking-wider">
             Session in progress
           </Text>
         </View>
@@ -53,7 +53,7 @@ export default function ActiveTimer({ reservation }: ActiveTimerProps) {
 
       {/* Countdown */}
       <View className="items-center gap-1">
-        <Text className="text-6xl font-bold text-gray-900 tracking-tight">
+        <Text className="font-unbounded text-black" style={{ fontSize: 56, lineHeight: 64 }}>
           {timeLabel}
         </Text>
         <Text className="text-sm text-gray-500">remaining</Text>

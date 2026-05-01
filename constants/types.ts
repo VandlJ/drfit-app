@@ -1,26 +1,30 @@
 // Shared TypeScript types for the DrFit app.
-// These mirror the API contract defined in API_CONTRACT.md.
+// API status values come back in UPPERCASE from the backend; we normalise to
+// lowercase snake_case for internal use throughout the app.
 
 export interface User {
   id: string;
   email: string;
   name: string;
-  phone?: string;
-  createdAt: string;
+  role: "client" | "admin";
+  createdAt?: string;
+  defaultCenter?: { id: string; name: string } | null;
 }
 
 export interface Center {
   id: string;
   name: string;
   address: string;
-  city: string;
+  description?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface Slot {
   id: string;
+  centerId: string;
   date: string;       // "YYYY-MM-DD"
-  startTime: string;  // "HH:MM"
-  endTime: string;    // "HH:MM"
+  startTime: string;  // "HH:mm"
+  endTime: string;    // "HH:mm"
   priceCredits: number;
   isAvailable: boolean;
 }
@@ -29,12 +33,12 @@ export type ReservationStatus = "active" | "completed" | "cancelled";
 
 export interface Reservation {
   id: string;
-  userId: string;
   slot: Slot;
   centerId: string;
   centerName: string;
+  centerAddress: string;
   status: ReservationStatus;
-  pin: string | null;  // null = not yet revealed (> 30 min before start)
+  pin: string | null;
   creditsSpent: number;
   createdAt: string;
 }
@@ -43,22 +47,40 @@ export type TransactionType = "topup" | "spend" | "refund" | "bonus";
 
 export interface CreditTransaction {
   id: string;
-  userId: string;
-  amount: number;       // positive = credit in, negative = debit
+  amount: number;       // positive = credit, negative = debit
   type: TransactionType;
   description: string;
-  referenceId?: string;
+  referenceId?: string | null;
   createdAt: string;
 }
 
 export interface CreditPackage {
-  id: string;
+  id: "starter" | "standard" | "premium" | "pro";
   label: string;
   priceKc: number;
   credits: number;
   bonusCredits: number;
   totalCredits: number;
   highlight: boolean;
+}
+
+// ─── Status normalisation helpers ─────────────────────────────────────────────
+
+export function normaliseStatus(
+  apiStatus: "ACTIVE" | "COMPLETED" | "CANCELLED" | string
+): ReservationStatus {
+  switch (apiStatus.toUpperCase()) {
+    case "ACTIVE":    return "active";
+    case "COMPLETED": return "completed";
+    case "CANCELLED": return "cancelled";
+    default:          return "active";
+  }
+}
+
+export function normaliseTransactionType(
+  apiType: "TOPUP" | "SPEND" | "REFUND" | "BONUS" | string
+): TransactionType {
+  return apiType.toLowerCase() as TransactionType;
 }
 
 // ─── PIN / Timer helpers ──────────────────────────────────────────────────────
@@ -107,5 +129,5 @@ export function formatDate(dateStr: string): string {
 }
 
 export function formatTime(timeStr: string): string {
-  return timeStr; // already "HH:MM"
+  return timeStr; // already "HH:mm"
 }

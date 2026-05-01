@@ -17,7 +17,7 @@ export const MOCK_USER: User = {
   id: "user-001",
   email: "john.doe@example.com",
   name: "John Doe",
-  phone: "+420 777 123 456",
+  role: "client",
   createdAt: "2025-01-15T10:00:00Z",
 };
 
@@ -33,13 +33,11 @@ export const MOCK_CENTERS: Center[] = [
     id: "center-001",
     name: "Fitness Plzeň Centrum",
     address: "Náměstí Republiky 12",
-    city: "Plzeň",
   },
   {
     id: "center-002",
     name: "Fitness Plzeň Slovany",
     address: "Slovanská alej 45",
-    city: "Plzeň",
   },
 ];
 
@@ -61,11 +59,12 @@ export const MOCK_RESERVATIONS: Reservation[] = [
   {
     // Nearest upcoming — hero card (PIN hidden, > 30 min away)
     id: "res-001",
-    userId: "user-001",
     centerId: "center-001",
     centerName: "Fitness Plzeň Centrum",
+    centerAddress: "Náměstí Republiky 12",
     slot: {
       id: "slot-101",
+      centerId: "center-001",
       date: daysFromNow(1),
       startTime: "10:00",
       endTime: "11:00",
@@ -80,11 +79,12 @@ export const MOCK_RESERVATIONS: Reservation[] = [
   {
     // Secondary upcoming card — different center
     id: "res-002",
-    userId: "user-001",
     centerId: "center-002",
     centerName: "Fitness Plzeň Slovany",
+    centerAddress: "Slovanská alej 45",
     slot: {
       id: "slot-102",
+      centerId: "center-002",
       date: daysFromNow(7),
       startTime: "14:00",
       endTime: "15:00",
@@ -99,11 +99,12 @@ export const MOCK_RESERVATIONS: Reservation[] = [
   {
     // Secondary upcoming card
     id: "res-003",
-    userId: "user-001",
     centerId: "center-001",
     centerName: "Fitness Plzeň Centrum",
+    centerAddress: "Náměstí Republiky 12",
     slot: {
       id: "slot-103",
+      centerId: "center-001",
       date: daysFromNow(11),
       startTime: "08:00",
       endTime: "09:00",
@@ -118,11 +119,12 @@ export const MOCK_RESERVATIONS: Reservation[] = [
   {
     // Completed — history only
     id: "res-004",
-    userId: "user-001",
     centerId: "center-001",
     centerName: "Fitness Plzeň Centrum",
+    centerAddress: "Náměstí Republiky 12",
     slot: {
       id: "slot-090",
+      centerId: "center-001",
       date: daysAgo(6),
       startTime: "09:00",
       endTime: "10:00",
@@ -137,11 +139,12 @@ export const MOCK_RESERVATIONS: Reservation[] = [
   {
     // Cancelled — history only
     id: "res-005",
-    userId: "user-001",
     centerId: "center-002",
     centerName: "Fitness Plzeň Slovany",
+    centerAddress: "Slovanská alej 45",
     slot: {
       id: "slot-089",
+      centerId: "center-002",
       date: daysAgo(13),
       startTime: "16:00",
       endTime: "17:00",
@@ -185,6 +188,7 @@ export function getMockSlotsForDate(date: string, centerId: string = "center-001
 
   return times.map((t, i) => ({
     id: `slot-${date}-${centerId}-${i}`,
+    centerId,
     date,
     startTime: t.start,
     endTime: t.end,
@@ -202,7 +206,6 @@ export const MOCK_INITIAL_BALANCE = 750;
 export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   {
     id: "tx-001",
-    userId: "user-001",
     amount: -100,
     type: "spend",
     description: `Booked session ${daysFromNow(1)} 10:00–11:00`,
@@ -211,7 +214,6 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   },
   {
     id: "tx-002",
-    userId: "user-001",
     amount: -100,
     type: "spend",
     description: `Booked session ${daysFromNow(7)} 14:00–15:00`,
@@ -220,7 +222,6 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   },
   {
     id: "tx-003",
-    userId: "user-001",
     amount: 100,
     type: "refund",
     description: `Refund: cancelled session ${daysAgo(13)} 16:00`,
@@ -229,7 +230,6 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   },
   {
     id: "tx-004",
-    userId: "user-001",
     amount: -100,
     type: "spend",
     description: `Booked session ${daysAgo(6)} 09:00–10:00`,
@@ -238,7 +238,6 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   },
   {
     id: "tx-005",
-    userId: "user-001",
     amount: 2200,
     type: "topup",
     description: "Premium pack — 2,000 + 200 bonus credits",
@@ -247,7 +246,6 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
   },
   {
     id: "tx-006",
-    userId: "user-001",
     amount: 1000,
     type: "topup",
     description: "Standard pack — 1,000 credits",
@@ -260,7 +258,7 @@ export const MOCK_TRANSACTIONS: CreditTransaction[] = [
 
 export const CREDIT_PACKAGES: CreditPackage[] = [
   {
-    id: "pkg-starter",
+    id: "starter",
     label: "Starter",
     priceKc: 500,
     credits: 500,
@@ -269,7 +267,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     highlight: false,
   },
   {
-    id: "pkg-standard",
+    id: "standard",
     label: "Standard",
     priceKc: 1000,
     credits: 1000,
@@ -278,7 +276,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     highlight: false,
   },
   {
-    id: "pkg-premium",
+    id: "premium",
     label: "Premium",
     priceKc: 2000,
     credits: 2000,
@@ -287,7 +285,7 @@ export const CREDIT_PACKAGES: CreditPackage[] = [
     highlight: true,
   },
   {
-    id: "pkg-pro",
+    id: "pro",
     label: "Pro",
     priceKc: 5000,
     credits: 5000,

@@ -126,8 +126,8 @@ export default function TopUpScreen() {
             >
               <ChevronLeft size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
-            <Text className="text-xl font-bold text-gray-900">
-              Top Up Credits
+            <Text className="text-xl font-unbounded text-black">
+              Top Up
             </Text>
           </View>
 
@@ -194,7 +194,7 @@ export default function TopUpScreen() {
               >
                 <Text
                   className={`text-base font-semibold ${
-                    isProcessing ? "text-gray-400" : "text-white"
+                    isProcessing ? "text-gray-400" : "text-black"
                   }`}
                 >
                   {isProcessing

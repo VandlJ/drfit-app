@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ScrollView, View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { Plus, LogOut, MapPin, ChevronDown } from "lucide-react-native";
+import { Plus, MapPin, ChevronDown, Wallet } from "lucide-react-native";
 import HeroCard from "@/components/HeroCard";
 import BookingCard from "@/components/BookingCard";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
@@ -12,8 +12,14 @@ import { Colors } from "@/constants/colors";
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user, logout } = useAuth();
-  const { reservations, centers, selectedCenter, setSelectedCenter } = useData();
+  const { user } = useAuth();
+  const {
+    reservations,
+    creditBalance,
+    centers,
+    selectedCenter,
+    setSelectedCenter,
+  } = useData();
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const activeReservations = reservations
@@ -38,11 +44,8 @@ export default function HomeScreen() {
           {/* Header */}
           <View className="flex-row items-start justify-between">
             <View className="gap-1">
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                DrFit
-              </Text>
-              <Text className="text-2xl font-bold text-gray-900">
-                Hello, {user?.name?.split(" ")[0] ?? "there"} 👋
+              <Text className="text-2xl font-unbounded text-black">
+                Hello, {user?.name?.split(" ")[0] ?? "there"}
               </Text>
               {/* Center switcher */}
               <TouchableOpacity
@@ -50,29 +53,30 @@ export default function HomeScreen() {
                 onPress={() => setPickerVisible(true)}
                 activeOpacity={0.7}
               >
-                <MapPin size={12} color={Colors.primary} />
-                <Text className="text-sm font-medium text-primary">
+                <MapPin size={12} color={Colors.textSecondary} />
+                <Text className="text-sm font-medium text-gray-600">
                   {selectedCenter.name}
                 </Text>
-                <ChevronDown size={12} color={Colors.primary} />
+                <ChevronDown size={12} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
+
+            {/* Credits chip */}
             <TouchableOpacity
-              className="bg-white border border-gray-200 rounded-full w-10 h-10 items-center justify-center"
-              onPress={logout}
+              className="bg-white border border-gray-200 rounded-full px-3 py-2 flex-row items-center gap-1.5"
+              onPress={() => router.push("/(tabs)/credits")}
               activeOpacity={0.7}
             >
-              <LogOut size={18} color={Colors.textSecondary} />
+              <Wallet size={14} color={Colors.textSecondary} />
+              <Text className="text-sm font-semibold text-black">
+                {creditBalance}
+              </Text>
+              <Text className="text-xs text-gray-400">cr</Text>
             </TouchableOpacity>
           </View>
 
           {/* Hero card */}
-          <View className="gap-2">
-            <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              Your next session
-            </Text>
-            <HeroCard reservation={heroReservation} />
-          </View>
+          <HeroCard reservation={heroReservation} />
 
           {/* Upcoming */}
           {upcomingReservations.length > 0 && (
@@ -90,13 +94,13 @@ export default function HomeScreen() {
 
           {/* New booking CTA */}
           <TouchableOpacity
-            className="flex-row items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-4"
+            className="flex-row items-center justify-center gap-2 bg-primary rounded-2xl py-4"
             onPress={() => router.push("/(tabs)/booking")}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <Plus size={18} color={Colors.primary} />
-            <Text className="text-primary text-sm font-semibold">
-              Book a New Session
+            <Plus size={18} color={Colors.textPrimary} />
+            <Text className="text-black text-sm font-semibold">
+              Book a Session
             </Text>
           </TouchableOpacity>
         </View>

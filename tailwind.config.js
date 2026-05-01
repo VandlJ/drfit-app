@@ -9,13 +9,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#16A34A",
-        "primary-light": "#DCFCE7",
-        "primary-dark": "#15803D",
-        danger: "#DC2626",
-        "danger-light": "#FEE2E2",
-        warning: "#D97706",
+        primary: "#C8EF2F",
+        "primary-light": "#F0FAC0",
+        "primary-dark": "#A8CC1A",
+        danger: "#E8513A",
+        "danger-light": "#FDECEA",
+        warning: "#F59E0B",
         "warning-light": "#FEF3C7",
+      },
+      fontFamily: {
+        unbounded: ["Unbounded_700Bold"],
+        "unbounded-medium": ["Unbounded_500Medium"],
+        "unbounded-regular": ["Unbounded_400Regular"],
       },
     },
   },

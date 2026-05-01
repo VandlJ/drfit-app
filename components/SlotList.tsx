@@ -15,8 +15,10 @@ export default function SlotList({
 }: SlotListProps) {
   if (slots.length === 0) {
     return (
-      <View className="flex-1 items-center justify-center py-16">
-        <Text className="text-gray-400 text-sm">No slots for this day.</Text>
+      <View className="flex-1 items-center justify-center py-16 px-8">
+        <Text className="text-gray-400 text-sm text-center">
+          No slots available for this day.{"\n"}Check back later or pick another date.
+        </Text>
       </View>
     );
   }
@@ -53,10 +55,10 @@ export default function SlotList({
               <Text
                 className={`text-base font-bold ${
                   isSelected
-                    ? "text-white"
+                    ? "text-black"
                     : isUnavailable
                     ? "text-gray-300"
-                    : "text-gray-900"
+                    : "text-black"
                 }`}
               >
                 {slot.startTime} – {slot.endTime}
@@ -64,7 +66,7 @@ export default function SlotList({
               <Text
                 className={`text-xs ${
                   isSelected
-                    ? "text-white opacity-80"
+                    ? "text-black/60"
                     : isUnavailable
                     ? "text-gray-300"
                     : "text-gray-400"
@@ -79,10 +81,10 @@ export default function SlotList({
               <Text
                 className={`text-sm font-semibold ${
                   isSelected
-                    ? "text-white"
+                    ? "text-black"
                     : isUnavailable
                     ? "text-gray-300"
-                    : "text-gray-900"
+                    : "text-black"
                 }`}
               >
                 {slot.priceCredits} cr
@@ -94,14 +96,14 @@ export default function SlotList({
                   </Text>
                 </View>
               ) : isSelected ? (
-                <View className="bg-white/20 rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] text-white font-semibold">
+                <View className="bg-black/10 rounded-full px-2 py-0.5">
+                  <Text className="text-[10px] text-black font-semibold">
                     Selected
                   </Text>
                 </View>
               ) : (
-                <View className="bg-green-50 rounded-full px-2 py-0.5">
-                  <Text className="text-[10px] text-primary font-medium">
+                <View className="bg-neutral-100 rounded-full px-2 py-0.5">
+                  <Text className="text-[10px] text-gray-500 font-medium">
                     Free
                   </Text>
                 </View>

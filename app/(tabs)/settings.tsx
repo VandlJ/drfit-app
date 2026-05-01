@@ -1,18 +1,33 @@
 import { useState } from "react";
-import { ScrollView, View, Text, TouchableOpacity, Alert } from "react-native";
+import {
+  ScrollView,
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { MapPin, ChevronRight, LogOut, ScanFace } from "lucide-react-native";
+import { MapPin, ChevronRight, LogOut, ScanFace, MessageSquare, Star, X } from "lucide-react-native";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
+import { apiSubmitFeedback } from "@/lib/api";
 import { Colors } from "@/constants/colors";
 
 export default function SettingsScreen() {
-  const router = useRouter();
   const { user, logout, isFaceIDEnabled, enableFaceID, disableFaceID } = useAuth();
   const { centers, selectedCenter, setSelectedCenter } = useData();
   const [pickerVisible, setPickerVisible] = useState(false);
+
+  // Feedback modal state
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleToggleFaceID() {
     if (isFaceIDEnabled) {
@@ -21,7 +36,15 @@ export default function SettingsScreen() {
         { text: "Disable", style: "destructive", onPress: disableFaceID },
       ]);
     } else {
-      await enableFaceID();
+      const success = await enableFaceID();
+      if (success) {
+        Alert.alert("Face ID Enabled", "You can now sign in with Face ID.");
+      } else {
+        Alert.alert(
+          "Face ID Unavailable",
+          "Face ID is not set up on this device. Go to Settings → Face ID & Passcode to configure it."
+        );
+      }
     }
   }
 
@@ -32,6 +55,29 @@ export default function SettingsScreen() {
     ]);
   }
 
+  function openFeedback() {
+    setRating(0);
+    setComment("");
+    setFeedbackVisible(true);
+  }
+
+  async function submitFeedback() {
+    if (rating === 0) {
+      Alert.alert("Rating required", "Please select a star rating.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await apiSubmitFeedback({ rating, comment: comment.trim() || undefined });
+      setFeedbackVisible(false);
+      Alert.alert("Thank you!", "Your feedback has been sent.");
+    } catch {
+      Alert.alert("Error", "Failed to send feedback. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-neutral-100">
       <ScrollView
@@ -40,12 +86,7 @@ export default function SettingsScreen() {
       >
         <View className="px-6 pt-4 gap-6">
           {/* Header */}
-          <View className="gap-0.5">
-            <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              DrFit
-            </Text>
-            <Text className="text-2xl font-bold text-gray-900">Settings</Text>
-          </View>
+          <Text className="text-2xl font-unbounded text-black">Settings</Text>
 
           {/* User card */}
           <View className="bg-white rounded-2xl p-5 gap-3 border border-gray-100">
@@ -54,12 +95,12 @@ export default function SettingsScreen() {
             </Text>
             <View className="flex-row items-center gap-3">
               <View className="bg-primary rounded-full w-12 h-12 items-center justify-center">
-                <Text className="text-white text-lg font-bold">
+                <Text className="text-black text-lg font-bold">
                   {user?.name?.charAt(0) ?? "?"}
                 </Text>
               </View>
               <View className="gap-0.5">
-                <Text className="text-base font-semibold text-gray-900">
+                <Text className="text-base font-semibold text-black">
                   {user?.name}
                 </Text>
                 <Text className="text-sm text-gray-500">{user?.email}</Text>
@@ -79,11 +120,11 @@ export default function SettingsScreen() {
               onPress={() => setPickerVisible(true)}
               activeOpacity={0.7}
             >
-              <View className="bg-primary-light rounded-xl w-10 h-10 items-center justify-center">
-                <MapPin size={18} color={Colors.primary} />
+              <View className="bg-primary rounded-xl w-10 h-10 items-center justify-center">
+                <MapPin size={18} color={Colors.textPrimary} />
               </View>
               <View className="flex-1 gap-0.5">
-                <Text className="text-sm font-semibold text-gray-900">
+                <Text className="text-sm font-semibold text-black">
                   {selectedCenter.name}
                 </Text>
                 <Text className="text-xs text-gray-500">
@@ -110,7 +151,7 @@ export default function SettingsScreen() {
                 <ScanFace size={18} color={Colors.textSecondary} />
               </View>
               <View className="flex-1">
-                <Text className="text-sm font-semibold text-gray-900">
+                <Text className="text-sm font-semibold text-black">
                   Face ID
                 </Text>
                 <Text className="text-xs text-gray-500">
@@ -123,7 +164,7 @@ export default function SettingsScreen() {
                 }`}
               >
                 {isFaceIDEnabled && (
-                  <Text className="text-white text-[10px] font-bold">✓</Text>
+                  <Text className="text-black text-[10px] font-bold">✓</Text>
                 )}
               </View>
             </TouchableOpacity>
@@ -139,14 +180,12 @@ export default function SettingsScreen() {
             <TouchableOpacity
               className="flex-row items-center gap-4 px-5 py-4"
               activeOpacity={0.7}
-              onPress={() =>
-                Alert.alert("Feedback", "Send your feedback to: info@drfit.cz")
-              }
+              onPress={openFeedback}
             >
               <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                <Text className="text-base">💬</Text>
+                <MessageSquare size={18} color={Colors.textSecondary} />
               </View>
-              <Text className="flex-1 text-sm font-semibold text-gray-900">
+              <Text className="flex-1 text-sm font-semibold text-black">
                 Send Feedback
               </Text>
               <ChevronRight size={16} color={Colors.textMuted} />
@@ -155,11 +194,14 @@ export default function SettingsScreen() {
 
           {/* Sign out */}
           <TouchableOpacity
-            className="bg-red-50 border border-red-100 rounded-2xl py-4 items-center"
+            className="border border-gray-200 rounded-2xl py-4 flex-row items-center justify-center gap-2 bg-white"
             onPress={handleLogout}
             activeOpacity={0.8}
           >
-            <Text className="text-red-600 text-sm font-semibold">Sign Out</Text>
+            <LogOut size={16} color={Colors.danger} />
+            <Text className="text-sm font-semibold" style={{ color: Colors.danger }}>
+              Sign Out
+            </Text>
           </TouchableOpacity>
 
           <Text className="text-center text-xs text-gray-300">
@@ -167,6 +209,93 @@ export default function SettingsScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* ─── Feedback Modal ───────────────────────────────────────────────── */}
+      <Modal
+        visible={feedbackVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFeedbackVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          className="flex-1 justify-end"
+          style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
+        >
+          <View className="bg-white rounded-t-3xl px-6 pt-5 pb-10 gap-5">
+            {/* Handle + title */}
+            <View className="items-center">
+              <View className="w-10 h-1 rounded-full bg-gray-200 mb-4" />
+            </View>
+            <View className="flex-row items-center justify-between">
+              <Text className="text-lg font-bold text-black">Send Feedback</Text>
+              <TouchableOpacity
+                onPress={() => setFeedbackVisible(false)}
+                className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <X size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Star rating */}
+            <View className="gap-2">
+              <Text className="text-sm text-gray-500">How was your experience?</Text>
+              <View className="flex-row gap-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <TouchableOpacity
+                    key={star}
+                    onPress={() => setRating(star)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  >
+                    <Star
+                      size={36}
+                      color={star <= rating ? "#C8EF2F" : Colors.textMuted}
+                      fill={star <= rating ? "#C8EF2F" : "transparent"}
+                      strokeWidth={1.5}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Comment input */}
+            <View className="gap-2">
+              <Text className="text-sm text-gray-500">Comment (optional)</Text>
+              <TextInput
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Tell us what you think..."
+                placeholderTextColor={Colors.textMuted}
+                multiline
+                numberOfLines={3}
+                className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-black"
+                style={{ minHeight: 80, textAlignVertical: "top" }}
+                maxLength={500}
+              />
+            </View>
+
+            {/* Submit */}
+            <TouchableOpacity
+              className={`rounded-full py-4 items-center ${
+                rating > 0 && !isSubmitting ? "bg-primary" : "bg-gray-200"
+              }`}
+              onPress={submitFeedback}
+              disabled={rating === 0 || isSubmitting}
+              activeOpacity={0.85}
+            >
+              <Text
+                className={`text-base font-semibold ${
+                  rating > 0 && !isSubmitting ? "text-black" : "text-gray-400"
+                }`}
+              >
+                {isSubmitting ? "Sending..." : "Send"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
       <CenterPickerSheet
         visible={pickerVisible}

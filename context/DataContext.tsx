@@ -2,15 +2,25 @@ import React, {
   createContext,
   useContext,
   useState,
+  useEffect,
   useCallback,
+  useRef,
 } from "react";
 import {
-  MOCK_RESERVATIONS,
-  MOCK_TRANSACTIONS,
-  MOCK_INITIAL_BALANCE,
-  MOCK_CENTERS,
-  getMockSlotsForDate,
-} from "@/constants/mock";
+  apiGetCenters,
+  apiGetSlots,
+  apiGetReservations,
+  apiCreateReservation,
+  apiCancelReservation,
+  apiGetCreditBalance,
+  apiGetCreditHistory,
+  apiUpdateMe,
+  ApiSlot,
+} from "@/lib/api";
+import {
+  normaliseStatus,
+  normaliseTransactionType,
+} from "@/constants/types";
 import type {
   Center,
   Reservation,
@@ -18,6 +28,23 @@ import type {
   Slot,
   CreditPackage,
 } from "@/constants/types";
+import { CREDIT_PACKAGES } from "@/constants/mock";
+import { useAuth } from "./AuthContext";
+
+// ─── Cache: slots by "date|centerId" ─────────────────────────────────────────
+type SlotCache = Record<string, Slot[]>;
+
+function apiSlotToSlot(s: ApiSlot): Slot {
+  return {
+    id: s.id,
+    centerId: s.centerId,
+    date: s.date,
+    startTime: s.startTime,
+    endTime: s.endTime,
+    priceCredits: s.priceCredits,
+    isAvailable: s.isAvailable,
+  };
+}
 
 interface DataContextValue {
   // Centers
@@ -28,57 +55,168 @@ interface DataContextValue {
   reservations: Reservation[];
   creditBalance: number;
   transactions: CreditTransaction[];
+  isLoadingData: boolean;
   // Booking
   getSlotsForDate: (date: string) => Slot[];
+  fetchSlotsForDate: (date: string) => Promise<void>;
   addReservation: (slot: Slot) => Promise<void>;
   cancelReservation: (id: string) => Promise<void>;
   // Credits
   topUpCredits: (pkg: CreditPackage) => Promise<void>;
+  refreshBalance: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextValue | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [centers] = useState<Center[]>(MOCK_CENTERS);
-  const [selectedCenter, setSelectedCenter] = useState<Center>(MOCK_CENTERS[0]);
-  const [reservations, setReservations] =
-    useState<Reservation[]>(MOCK_RESERVATIONS);
-  const [creditBalance, setCreditBalance] = useState(MOCK_INITIAL_BALANCE);
-  const [transactions, setTransactions] =
-    useState<CreditTransaction[]>(MOCK_TRANSACTIONS);
+  const { token } = useAuth();
 
-  // Re-created when selectedCenter changes so slots reflect the active center
-  const getSlotsForDate = useCallback(
-    (date: string): Slot[] => getMockSlotsForDate(date, selectedCenter.id),
-    [selectedCenter]
+  const [centers, setCenters] = useState<Center[]>([]);
+  const [selectedCenter, setSelectedCenterState] = useState<Center | null>(null);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [creditBalance, setCreditBalance] = useState(0);
+  const [transactions, setTransactions] = useState<CreditTransaction[]>([]);
+  const [slotCache, setSlotCache] = useState<SlotCache>({});
+  const [isLoadingData, setIsLoadingData] = useState(false);
+
+  // Track in-flight slot fetches to avoid duplicate requests
+  const pendingSlotFetches = useRef<Set<string>>(new Set());
+
+  // ── Initial load when user is authenticated ────────────────────────────────
+  useEffect(() => {
+    if (!token) {
+      // User logged out — reset all data
+      setCenters([]);
+      setSelectedCenterState(null);
+      setReservations([]);
+      setCreditBalance(0);
+      setTransactions([]);
+      setSlotCache({});
+      return;
+    }
+    loadInitialData();
+  }, [token]);
+
+  async function loadInitialData() {
+    setIsLoadingData(true);
+    try {
+      const [apiCenters, apiReservations, balance, txHistory] =
+        await Promise.all([
+          apiGetCenters(),
+          apiGetReservations(),
+          apiGetCreditBalance(),
+          apiGetCreditHistory(50),
+        ]);
+
+      const mappedCenters: Center[] = apiCenters.map((c) => ({
+        id: c.id,
+        name: c.name,
+        address: c.address,
+        description: c.description,
+        imageUrl: c.imageUrl,
+      }));
+
+      setCenters(mappedCenters);
+      // Default to first center (will be overridden by user defaultCenter later)
+      setSelectedCenterState((prev) => prev ?? mappedCenters[0] ?? null);
+
+      const mappedReservations: Reservation[] = apiReservations.map((r) => ({
+        id: r.id,
+        slot: apiSlotToSlot(r.slot),
+        centerId: r.slot.center?.id ?? r.slot.centerId,
+        centerName: r.slot.center?.name ?? "—",
+        centerAddress: r.slot.center?.address ?? "—",
+        status: normaliseStatus(r.status),
+        pin: r.pin ?? null,
+        creditsSpent: r.creditsSpent,
+        createdAt: r.createdAt,
+      }));
+      setReservations(
+        mappedReservations.sort(
+          (a, b) =>
+            new Date(a.slot.date + "T" + a.slot.startTime).getTime() -
+            new Date(b.slot.date + "T" + b.slot.startTime).getTime()
+        )
+      );
+
+      setCreditBalance(balance);
+
+      const mappedTx: CreditTransaction[] = txHistory.map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        type: normaliseTransactionType(t.type),
+        description: t.description,
+        referenceId: t.referenceId,
+        createdAt: t.createdAt,
+      }));
+      setTransactions(mappedTx);
+    } catch (e) {
+      // Silently fail — user sees empty states
+      console.warn("[DataContext] loadInitialData error:", e);
+    } finally {
+      setIsLoadingData(false);
+    }
+  }
+
+  // ── Set selected center + sync defaultCenterId to backend ─────────────────
+  const setSelectedCenter = useCallback(
+    async (center: Center) => {
+      setSelectedCenterState(center);
+      // Invalidate slot cache for other centers
+      setSlotCache({});
+      // Persist to backend (best-effort)
+      try {
+        await apiUpdateMe(center.id);
+      } catch {}
+    },
+    []
   );
 
+  // ── Slot access: sync cache lookup + async fetch ──────────────────────────
+  const getSlotsForDate = useCallback(
+    (date: string): Slot[] => {
+      if (!selectedCenter) return [];
+      const key = `${date}|${selectedCenter.id}`;
+      return slotCache[key] ?? [];
+    },
+    [selectedCenter, slotCache]
+  );
+
+  const fetchSlotsForDate = useCallback(
+    async (date: string) => {
+      if (!selectedCenter) return;
+      const key = `${date}|${selectedCenter.id}`;
+      if (slotCache[key] || pendingSlotFetches.current.has(key)) return;
+
+      pendingSlotFetches.current.add(key);
+      try {
+        const apiSlots = await apiGetSlots(date, selectedCenter.id);
+        const mapped = apiSlots.map(apiSlotToSlot);
+        setSlotCache((prev) => ({ ...prev, [key]: mapped }));
+      } catch {
+        // Slot fetch failed — leave cache empty (shows "No slots")
+      } finally {
+        pendingSlotFetches.current.delete(key);
+      }
+    },
+    [selectedCenter, slotCache]
+  );
+
+  // ── Book a slot ───────────────────────────────────────────────────────────
   const addReservation = useCallback(
     async (slot: Slot) => {
-      if (creditBalance < slot.priceCredits) {
-        throw new Error("Insufficient credits.");
-      }
+      const apiRes = await apiCreateReservation(slot.id);
 
       const newReservation: Reservation = {
-        id: `res-${Date.now()}`,
-        userId: "user-001",
-        centerId: selectedCenter.id,
-        centerName: selectedCenter.name,
-        slot: { ...slot, isAvailable: false },
-        status: "active",
-        pin: null,
-        creditsSpent: slot.priceCredits,
-        createdAt: new Date().toISOString(),
-      };
-
-      const newTransaction: CreditTransaction = {
-        id: `tx-${Date.now()}`,
-        userId: "user-001",
-        amount: -slot.priceCredits,
-        type: "spend",
-        description: `Booked session ${slot.date} ${slot.startTime}–${slot.endTime}`,
-        referenceId: newReservation.id,
-        createdAt: new Date().toISOString(),
+        id: apiRes.id,
+        slot: apiSlotToSlot(apiRes.slot),
+        centerId: apiRes.slot.center?.id ?? slot.centerId,
+        centerName: apiRes.slot.center?.name ?? selectedCenter?.name ?? "—",
+        centerAddress: apiRes.slot.center?.address ?? selectedCenter?.address ?? "—",
+        status: normaliseStatus(apiRes.status),
+        pin: apiRes.pin ?? null,
+        creditsSpent: apiRes.creditsSpent,
+        createdAt: apiRes.createdAt,
       };
 
       setReservations((prev) =>
@@ -88,13 +226,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             new Date(b.slot.date + "T" + b.slot.startTime).getTime()
         )
       );
-      setCreditBalance((prev) => prev - slot.priceCredits);
-      setTransactions((prev) => [newTransaction, ...prev]);
+
+      // Refresh balance from server (authoritative)
+      const newBalance = await apiGetCreditBalance();
+      setCreditBalance(newBalance);
+
+      // Mark slot as unavailable in cache
+      const key = `${slot.date}|${slot.centerId}`;
+      setSlotCache((prev) => {
+        const cached = prev[key];
+        if (!cached) return prev;
+        return {
+          ...prev,
+          [key]: cached.map((s) =>
+            s.id === slot.id ? { ...s, isAvailable: false } : s
+          ),
+        };
+      });
     },
-    [creditBalance, selectedCenter]
+    [selectedCenter]
   );
 
+  // ── Cancel a reservation ──────────────────────────────────────────────────
   const cancelReservation = useCallback(async (id: string) => {
+    await apiCancelReservation(id);
+
     setReservations((prev) =>
       prev.map((r) =>
         r.id === id
@@ -103,52 +259,51 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    const reservation = reservations.find((r) => r.id === id);
-    if (reservation && reservation.creditsSpent > 0) {
-      const refundTx: CreditTransaction = {
-        id: `tx-${Date.now()}`,
-        userId: "user-001",
-        amount: reservation.creditsSpent,
-        type: "refund",
-        description: `Refund: cancelled ${reservation.slot.date} ${reservation.slot.startTime}`,
-        referenceId: id,
-        createdAt: new Date().toISOString(),
-      };
-      setCreditBalance((prev) => prev + reservation.creditsSpent);
-      setTransactions((prev) => [refundTx, ...prev]);
-    }
-  }, [reservations]);
-
-  const topUpCredits = useCallback(async (pkg: CreditPackage) => {
-    const topUpTx: CreditTransaction = {
-      id: `tx-${Date.now()}`,
-      userId: "user-001",
-      amount: pkg.totalCredits,
-      type: "topup",
-      description:
-        pkg.bonusCredits > 0
-          ? `${pkg.label} pack — ${pkg.credits.toLocaleString()} + ${pkg.bonusCredits} bonus credits`
-          : `${pkg.label} pack — ${pkg.credits.toLocaleString()} credits`,
-      referenceId: `stripe-pi-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-    };
-    setCreditBalance((prev) => prev + pkg.totalCredits);
-    setTransactions((prev) => [topUpTx, ...prev]);
+    // Refresh balance (credit refunded by backend)
+    const newBalance = await apiGetCreditBalance();
+    setCreditBalance(newBalance);
   }, []);
+
+  // ── Top up credits (optimistic for now — Stripe flow wires in later) ──────
+  const topUpCredits = useCallback(async (pkg: CreditPackage) => {
+    // The real Stripe flow will call apiCreateTopupIntent → confirm PaymentIntent
+    // → backend webhook updates balance. For now we just refresh after simulated delay.
+    await new Promise((r) => setTimeout(r, 800));
+    const newBalance = await apiGetCreditBalance();
+    setCreditBalance(newBalance);
+  }, []);
+
+  // ── Manually refresh balance ───────────────────────────────────────────────
+  const refreshBalance = useCallback(async () => {
+    try {
+      const b = await apiGetCreditBalance();
+      setCreditBalance(b);
+    } catch {}
+  }, []);
+
+  // Guard: render nothing until we have at least one center loaded
+  const safeSelectedCenter: Center = selectedCenter ?? {
+    id: "",
+    name: "Loading...",
+    address: "",
+  };
 
   return (
     <DataContext.Provider
       value={{
         centers,
-        selectedCenter,
+        selectedCenter: safeSelectedCenter,
         setSelectedCenter,
         reservations,
         creditBalance,
         transactions,
+        isLoadingData,
         getSlotsForDate,
+        fetchSlotsForDate,
         addReservation,
         cancelReservation,
         topUpCredits,
+        refreshBalance,
       }}
     >
       {children}

@@ -1,5 +1,5 @@
 import { View, Text, TouchableOpacity } from "react-native";
-import { ChevronRight, MapPin } from "lucide-react-native";
+import { ChevronRight, MapPin, CalendarDays } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import type { Reservation } from "@/constants/types";
 import { formatDate } from "@/constants/types";
@@ -19,8 +19,8 @@ export default function BookingCard({ reservation, onPress }: BookingCardProps) 
       activeOpacity={0.7}
     >
       <View className="flex-row items-center gap-3">
-        <View className="bg-primary-light rounded-xl w-10 h-10 items-center justify-center">
-          <Text className="text-base">🗓</Text>
+        <View className="bg-primary rounded-xl w-10 h-10 items-center justify-center">
+          <CalendarDays size={18} color={Colors.textPrimary} strokeWidth={1.75} />
         </View>
         <View className="gap-0.5">
           <Text className="text-sm font-semibold text-gray-900">

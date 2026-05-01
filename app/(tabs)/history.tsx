@@ -52,33 +52,30 @@ export default function HistoryScreen() {
     <SafeAreaView className="flex-1 bg-neutral-100">
       <View className="flex-1 gap-4 pt-4">
         {/* Header */}
-        <View className="px-6 gap-0.5">
-          <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-            DrFit
-          </Text>
-          <Text className="text-2xl font-bold text-gray-900">History</Text>
+        <View className="px-6">
+          <Text className="text-2xl font-unbounded text-black">History</Text>
         </View>
 
-        {/* Filter tabs */}
+        {/* Filter tabs — border always present to prevent size jump on selection */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 8, alignItems: "center" }}
         >
           {FILTER_OPTIONS.map((opt) => (
             <TouchableOpacity
               key={opt.key}
               onPress={() => setFilter(opt.key)}
               activeOpacity={0.7}
-              className={`rounded-full px-4 py-2 ${
+              className={`rounded-full px-4 py-2 border ${
                 filter === opt.key
-                  ? "bg-primary"
-                  : "bg-white border border-gray-200"
+                  ? "bg-primary border-primary"
+                  : "bg-white border-gray-200"
               }`}
             >
               <Text
                 className={`text-sm font-semibold ${
-                  filter === opt.key ? "text-white" : "text-gray-600"
+                  filter === opt.key ? "text-black" : "text-gray-600"
                 }`}
               >
                 {opt.label}
@@ -130,7 +127,7 @@ function ReservationRow({
       {/* Top row */}
       <View className="flex-row items-center justify-between">
         <View className="gap-0.5">
-          <Text className="text-base font-bold text-gray-900">
+          <Text className="text-base font-bold text-black">
             {formatDate(r.slot.date)}
           </Text>
           <Text className="text-sm text-gray-500">
@@ -169,7 +166,7 @@ function ReservationRow({
             activeOpacity={0.7}
           >
             <X size={13} color={Colors.danger} />
-            <Text className="text-xs text-red-600 font-medium">
+            <Text className="text-xs font-medium" style={{ color: Colors.danger }}>
               Cancel
             </Text>
           </TouchableOpacity>

@@ -18,28 +18,21 @@ export default function CreditsScreen() {
       >
         <View className="px-6 pt-4 gap-6">
           {/* Header */}
-          <View className="flex-row items-end justify-between">
-            <View className="gap-0.5">
-              <Text className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                DrFit
-              </Text>
-              <Text className="text-2xl font-bold text-gray-900">Credits</Text>
-            </View>
-          </View>
+          <Text className="text-2xl font-unbounded text-black">Credits</Text>
 
           {/* Balance card */}
           <View className="bg-primary rounded-3xl p-6 gap-1">
-            <Text className="text-white/70 text-sm font-medium">
+            <Text className="text-black/60 text-sm font-medium">
               Your balance
             </Text>
-            <Text className="text-white text-5xl font-bold tracking-tight">
+            <Text className="text-black font-unbounded" style={{ fontSize: 52, lineHeight: 60 }}>
               {creditBalance.toLocaleString()}
             </Text>
-            <Text className="text-white/60 text-sm">credits</Text>
+            <Text className="text-black/50 text-sm">credits</Text>
 
             <View className="mt-4">
               <TouchableOpacity
-                className="bg-white rounded-full py-3 px-6 flex-row items-center gap-2 self-start"
+                className="bg-black rounded-full py-3 px-6 flex-row items-center gap-2 self-start"
                 onPress={() => router.push("/(tabs)/credits/topup")}
                 activeOpacity={0.85}
               >

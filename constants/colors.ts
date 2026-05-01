@@ -1,5 +1,5 @@
-// Central color palette — mirrors DESIGN_SYSTEM.md
-// Import from here instead of hardcoding hex values in components.
+// Central color palette — new DrFit brand identity
+// Primary: #C8EF2F (lime), Danger: #E8513A (red), Black/White only
 
 export const Colors = {
   // Backgrounds
@@ -7,20 +7,20 @@ export const Colors = {
   surface: "#FFFFFF",
 
   // Brand
-  primary: "#16A34A",
-  primaryLight: "#DCFCE7",
-  primaryDark: "#15803D",
+  primary: "#C8EF2F",
+  primaryLight: "#F0FAC0",
+  primaryDark: "#A8CC1A",
 
   // Text
-  textPrimary: "#111827",
-  textSecondary: "#6B7280",
-  textMuted: "#9CA3AF",
-  textInverse: "#FFFFFF",
+  textPrimary: "#000000",
+  textSecondary: "#555555",
+  textMuted: "#999999",
+  textInverse: "#000000",   // text on lime background = black (high contrast)
 
   // Semantic
-  danger: "#DC2626",
-  dangerLight: "#FEE2E2",
-  warning: "#D97706",
+  danger: "#E8513A",
+  dangerLight: "#FDECEA",
+  warning: "#F59E0B",
   warningLight: "#FEF3C7",
   info: "#2563EB",
   infoLight: "#DBEAFE",
@@ -30,14 +30,14 @@ export const Colors = {
   skeleton: "#F3F4F6",
 
   // Tab bar
-  tabActive: "#16A34A",
+  tabActive: "#C8EF2F",
   tabInactive: "#9CA3AF",
 } as const;
 
 // Reservation status color map
 export const StatusColors = {
-  active: { bg: "#DCFCE7", text: "#16A34A" },
-  completed: { bg: "#F3F4F6", text: "#6B7280" },
-  cancelled: { bg: "#FEE2E2", text: "#DC2626" },
+  active: { bg: "#F0FAC0", text: "#5A7A00" },
+  completed: { bg: "#F3F4F6", text: "#555555" },
+  cancelled: { bg: "#FDECEA", text: "#E8513A" },
   upcoming: { bg: "#DBEAFE", text: "#2563EB" },
 } as const;

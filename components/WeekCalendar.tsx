@@ -39,7 +39,6 @@ export default function WeekCalendar({
   const scrollRef = useRef<ScrollView>(null);
   const days = buildDays();
 
-  // Scroll to today on mount
   useEffect(() => {
     scrollRef.current?.scrollTo({ x: 0, animated: false });
   }, []);
@@ -64,22 +63,22 @@ export default function WeekCalendar({
               key={day.key}
               onPress={() => onSelectDate(day.key)}
               activeOpacity={0.7}
-              className={`items-center rounded-2xl py-3 px-3 w-14 gap-1 ${
+              className={`items-center rounded-2xl py-3 px-2 w-16 gap-1 ${
                 isSelected
                   ? "bg-primary"
                   : "bg-white border border-gray-100"
               }`}
             >
               <Text
-                className={`text-[11px] font-semibold uppercase ${
-                  isSelected ? "text-white" : "text-gray-400"
+                className={`text-[11px] font-semibold ${
+                  isSelected ? "text-black" : "text-gray-400"
                 }`}
               >
                 {day.dayName}
               </Text>
               <Text
                 className={`text-lg font-bold ${
-                  isSelected ? "text-white" : "text-gray-900"
+                  isSelected ? "text-black" : "text-black"
                 }`}
               >
                 {day.dayNum}
@@ -88,7 +87,7 @@ export default function WeekCalendar({
               <View
                 className={`w-1.5 h-1.5 rounded-full ${
                   isSelected
-                    ? "bg-white opacity-70"
+                    ? "bg-black opacity-30"
                     : hasSlots
                     ? "bg-primary"
                     : "bg-transparent"
