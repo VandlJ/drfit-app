@@ -162,9 +162,12 @@ export default function SettingsScreen() {
   }
 
   return (
-    <>
-      <SafeAreaView className="flex-1 bg-neutral-100">
-        <View className="flex-1 px-6 pt-4 gap-6">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        <View className="px-6 pt-4 gap-6">
           {/* Header */}
           <View className="flex-row items-center justify-between">
             <Text className="text-2xl font-unbounded text-black">Settings</Text>

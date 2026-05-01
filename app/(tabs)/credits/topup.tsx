@@ -7,6 +7,7 @@ import CreditPackageCard from "@/components/CreditPackageCard";
 import { useData } from "@/context/DataContext";
 import { CREDIT_PACKAGES } from "@/constants/mock";
 import { Colors } from "@/constants/colors";
+import { apiCreateTopupIntent } from "@/lib/api";
 import type { CreditPackage } from "@/constants/types";
 
 // Lazy import Apple Pay so the module failure (Expo Go) doesn't crash the screen.
@@ -57,20 +58,30 @@ export default function TopUpScreen() {
     setIsProcessing(true);
 
     try {
-      const { error, paymentMethod } =
-        await platformPayHook.createPlatformPayPaymentMethod({
+      // Step 1: ask backend for a PaymentIntent client secret
+      const { clientSecret } = await apiCreateTopupIntent(
+        selectedPkg.id as "starter" | "standard" | "premium" | "pro"
+      );
+
+      // Step 2: confirm the PaymentIntent via Apple Pay (one-shot — opens
+      // the sheet, collects the user's payment method, and confirms with Stripe).
+      const { error } = await platformPayHook.confirmPlatformPayPayment(
+        clientSecret,
+        {
           applePay: {
             cartItems: [
               {
                 label: `DrFit ${selectedPkg.label} Pack`,
-                amount: (selectedPkg.priceKc / 100).toFixed(2), // Stripe expects decimal string
+                // CZK is a zero-decimal currency in Stripe — pass full Kč as string
+                amount: selectedPkg.priceKc.toString(),
                 paymentType: PlatformPay.PaymentType.Immediate,
               },
             ],
             merchantCountryCode: "CZ",
             currencyCode: "CZK",
           },
-        });
+        }
+      );
 
       if (error) {
         if (error.code === "Canceled") return; // user dismissed sheet — not an error
@@ -78,8 +89,7 @@ export default function TopUpScreen() {
         return;
       }
 
-      // In production: send paymentMethod.id to backend → confirm intent
-      // For MVP: optimistically credit the account
+      // Step 3: refresh balance — backend webhook should have credited the account
       await topUpCredits(selectedPkg);
       Alert.alert(
         "Payment successful!",
@@ -87,6 +97,7 @@ export default function TopUpScreen() {
         [{ text: "Great!", onPress: () => router.back() }]
       );
     } catch (err: any) {
+      console.log("[TopUp] Apple Pay error:", err);
       Alert.alert("Error", err.message ?? "Unexpected error. Please try again.");
     } finally {
       setIsProcessing(false);
@@ -111,10 +122,10 @@ export default function TopUpScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 24 }}
       >
         <View className="px-6 pt-4 gap-6">
           {/* Header */}
@@ -168,49 +179,57 @@ export default function TopUpScreen() {
               valueStyle="font-bold text-gray-900"
             />
           </View>
-
-          {/* Payment buttons */}
-          <View className="gap-3">
-            {/* Apple Pay — only rendered in dev build when supported */}
-            {applePayAvailable && PlatformPayButton && (
-              <PlatformPayButton
-                onPress={handleApplePay}
-                type={PlatformPay?.ButtonType?.Pay}
-                appearance={PlatformPay?.ButtonStyle?.Black}
-                style={{ width: "100%", height: 54, borderRadius: 100 }}
-                disabled={isProcessing}
-              />
-            )}
-
-            {/* Simulated payment fallback (always shown in Expo Go, also shown when Apple Pay unavailable) */}
-            {!applePayAvailable && (
-              <TouchableOpacity
-                className={`rounded-full py-4 items-center ${
-                  isProcessing ? "bg-gray-200" : "bg-primary"
-                }`}
-                onPress={handleSimulatedPayment}
-                disabled={isProcessing}
-                activeOpacity={0.85}
-              >
-                <Text
-                  className={`text-base font-semibold ${
-                    isProcessing ? "text-gray-400" : "text-black"
-                  }`}
-                >
-                  {isProcessing
-                    ? "Processing..."
-                    : `Pay ${selectedPkg.priceKc.toLocaleString()} Kč`}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            <Text className="text-[11px] text-gray-400 text-center">
-              Payments are processed securely via Stripe.{"\n"}1 credit = 1 Kč
-              of gym access.
-            </Text>
-          </View>
         </View>
       </ScrollView>
+
+      {/* Sticky payment area */}
+      <View
+        className="bg-white border-t border-gray-100 px-6 pt-4 pb-3"
+        style={{
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.04,
+          shadowRadius: 8,
+          elevation: 8,
+        }}
+      >
+        {/* Apple Pay — only rendered in dev build when supported */}
+        {applePayAvailable && PlatformPayButton && (
+          <PlatformPayButton
+            onPress={handleApplePay}
+            type={PlatformPay?.ButtonType?.Pay}
+            appearance={PlatformPay?.ButtonStyle?.Black}
+            style={{ width: "100%", height: 54, borderRadius: 100 }}
+            disabled={isProcessing}
+          />
+        )}
+
+        {/* Simulated payment fallback (always shown in Expo Go, also shown when Apple Pay unavailable) */}
+        {!applePayAvailable && (
+          <TouchableOpacity
+            className={`rounded-full py-4 items-center ${
+              isProcessing ? "bg-gray-200" : "bg-primary"
+            }`}
+            onPress={handleSimulatedPayment}
+            disabled={isProcessing}
+            activeOpacity={0.85}
+          >
+            <Text
+              className={`text-base font-semibold ${
+                isProcessing ? "text-gray-400" : "text-black"
+              }`}
+            >
+              {isProcessing
+                ? "Processing..."
+                : `Pay ${selectedPkg.priceKc.toLocaleString()} Kč`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        <Text className="text-[11px] text-gray-400 text-center mt-2">
+          Payments are processed securely via Stripe. 1 credit = 1 Kč
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }

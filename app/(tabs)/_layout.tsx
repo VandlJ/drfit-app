@@ -2,34 +2,52 @@ import { useEffect, useRef } from "react";
 import { View, TouchableOpacity, Animated, useWindowDimensions } from "react-native";
 import { Tabs, useRouter } from "expo-router";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { Home, CalendarPlus, Wallet, Clock, Settings } from "lucide-react-native";
+import { Home, CalendarPlus, Settings } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "@/constants/colors";
 import { useAuth } from "@/context/AuthContext";
 
-const TAB_ICONS = [Home, CalendarPlus, Wallet, Clock, Settings];
-const TAB_COUNT = TAB_ICONS.length;
+const TAB_ICONS: Record<string, typeof Home> = {
+  index: Home,
+  booking: CalendarPlus,
+  settings: Settings,
+};
+const TAB_ORDER = ["index", "booking", "settings"];
+const PRIMARY_TAB = "booking";
+const TAB_COUNT = TAB_ORDER.length;
+
 const BAR_HEIGHT = 64;
-const SQUARE_SIZE = 46;
+const PRIMARY_ICON_SIZE = 28;
+const DEFAULT_ICON_SIZE = 24;
+const DOT_SIZE = 5;
 
 function AnimatedTabBar({ state, navigation }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tabWidth = width / TAB_COUNT;
 
-  const squareX = useRef(
-    new Animated.Value(state.index * tabWidth + (tabWidth - SQUARE_SIZE) / 2)
+  // Only render routes that should appear in the bar.
+  const visibleRoutes = state.routes.filter((r) => TAB_ORDER.includes(r.name));
+  const focusedRouteName = state.routes[state.index]?.name;
+  const visibleIndex = Math.max(
+    0,
+    visibleRoutes.findIndex((r) => r.name === focusedRouteName)
+  );
+
+  // Sliding lime dot under the active icon.
+  const dotX = useRef(
+    new Animated.Value(visibleIndex * tabWidth + tabWidth / 2 - DOT_SIZE / 2)
   ).current;
 
   useEffect(() => {
-    Animated.spring(squareX, {
-      toValue: state.index * tabWidth + (tabWidth - SQUARE_SIZE) / 2,
-      useNativeDriver: true,
+    Animated.spring(dotX, {
+      toValue: visibleIndex * tabWidth + tabWidth / 2 - DOT_SIZE / 2,
+      useNativeDriver: false,
       damping: 18,
       stiffness: 220,
       mass: 0.7,
     }).start();
-  }, [state.index, tabWidth]);
+  }, [visibleIndex, tabWidth]);
 
   return (
     <View
@@ -41,31 +59,19 @@ function AnimatedTabBar({ state, navigation }: BottomTabBarProps) {
         paddingBottom: insets.bottom,
       }}
     >
-      {/* Sliding lime square */}
-      <Animated.View
-        style={{
-          position: "absolute",
-          top: (BAR_HEIGHT - SQUARE_SIZE) / 2,
-          left: 0,
-          width: SQUARE_SIZE,
-          height: SQUARE_SIZE,
-          backgroundColor: Colors.primary,
-          borderRadius: 12,
-          transform: [{ translateX: squareX }],
-        }}
-      />
-
       {/* Tab buttons */}
       <View style={{ flexDirection: "row", height: BAR_HEIGHT }}>
-        {state.routes.map((route, index) => {
-          const Icon = TAB_ICONS[index];
-          const focused = state.index === index;
+        {visibleRoutes.map((route) => {
+          const Icon = TAB_ICONS[route.name];
+          const focused = route.name === focusedRouteName;
+          const isPrimary = route.name === PRIMARY_TAB;
+          const iconSize = isPrimary ? PRIMARY_ICON_SIZE : DEFAULT_ICON_SIZE;
 
           return (
             <TouchableOpacity
               key={route.key}
               onPress={() => navigation.navigate(route.name)}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
               style={{
                 flex: 1,
                 alignItems: "center",
@@ -73,7 +79,7 @@ function AnimatedTabBar({ state, navigation }: BottomTabBarProps) {
               }}
             >
               <Icon
-                size={22}
+                size={iconSize}
                 color={focused ? Colors.textPrimary : Colors.tabInactive}
                 strokeWidth={focused ? 2.5 : 2}
               />
@@ -81,6 +87,20 @@ function AnimatedTabBar({ state, navigation }: BottomTabBarProps) {
           );
         })}
       </View>
+
+      {/* Sliding lime dot indicator */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          bottom: insets.bottom + 8,
+          left: 0,
+          width: DOT_SIZE,
+          height: DOT_SIZE,
+          borderRadius: DOT_SIZE / 2,
+          backgroundColor: Colors.primary,
+          transform: [{ translateX: dotX }],
+        }}
+      />
     </View>
   );
 }
@@ -102,8 +122,8 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="booking" />
-      <Tabs.Screen name="credits" />
-      <Tabs.Screen name="history" />
+      <Tabs.Screen name="credits" options={{ href: null }} />
+      <Tabs.Screen name="history" options={{ href: null }} />
       <Tabs.Screen name="settings" />
     </Tabs>
   );

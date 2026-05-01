@@ -185,26 +185,13 @@ export async function apiLogout(refreshToken: string): Promise<void> {
 }
 
 export async function apiGetMe(): Promise<ApiUser> {
-  return apiFetch<ApiUser>("/auth/me");
+  // Backend wraps the user in `{ user: {...} }` — unwrap here.
+  const res = await apiFetch<{ user: ApiUser } | ApiUser>("/me");
+  return "user" in res ? (res as { user: ApiUser }).user : (res as ApiUser);
 }
 
-/** GET /me — full profile including avatarUrl and dateOfBirth. Response: { user: ApiUser } */
-export async function apiGetProfile(): Promise<Partial<ApiUser>> {
-  try {
-    const res = await apiFetch<{ user: ApiUser }>("/me");
-    return res.user ?? {};
-  } catch {
-    return {};
-  }
-}
-
-export async function apiUpdateMe(fields: {
-  name?: string;
-  email?: string;
-  defaultCenterId?: string | null;
-  dateOfBirth?: string | null;
-}): Promise<ApiUser> {
-  const res = await apiFetch<{ user: ApiUser }>("/me", {
+export async function apiUpdateMe(defaultCenterId: string): Promise<ApiUser> {
+  const res = await apiFetch<{ user: ApiUser } | ApiUser>("/me", {
     method: "PATCH",
     body: JSON.stringify(fields),
   });
@@ -219,6 +206,7 @@ export async function apiChangePassword(
     method: "POST",
     body: JSON.stringify({ currentPassword, newPassword }),
   });
+  return "user" in res ? (res as { user: ApiUser }).user : (res as ApiUser);
 }
 
 export async function apiUploadAvatar(imageUri: string): Promise<ApiUser> {

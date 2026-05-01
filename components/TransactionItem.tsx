@@ -11,29 +11,25 @@ const TYPE_CONFIG = {
   topup: {
     icon: ArrowDownLeft,
     bg: "bg-primary-light",
-    iconColor: Colors.textPrimary,
-    amountPrefix: "+",
-    amountColor: Colors.textPrimary,
+    iconColor: "#5A7A00",
+    amountColor: Colors.primaryDark,
   },
   spend: {
     icon: ArrowUpRight,
-    bg: "bg-gray-100",
-    iconColor: Colors.textSecondary,
-    amountPrefix: "",
-    amountColor: Colors.textPrimary,
+    bg: "bg-red-50",
+    iconColor: Colors.danger,
+    amountColor: Colors.danger,
   },
   refund: {
     icon: RotateCcw,
     bg: "bg-blue-100",
     iconColor: Colors.info,
-    amountPrefix: "+",
     amountColor: Colors.info,
   },
   bonus: {
     icon: Gift,
     bg: "bg-yellow-100",
     iconColor: Colors.warning,
-    amountPrefix: "+",
     amountColor: Colors.warning,
   },
 } as const;
@@ -58,10 +54,8 @@ export default function TransactionItem({ tx }: TransactionItemProps) {
   return (
     <View className="flex-row items-center gap-3 py-3.5 border-b border-gray-100">
       {/* Icon */}
-      <View
-        className={`${config.bg} rounded-xl w-10 h-10 items-center justify-center`}
-      >
-        <Icon size={18} color={config.iconColor} strokeWidth={2} />
+      <View className="w-10 h-10 items-center justify-center">
+        <Icon size={22} color={config.iconColor} strokeWidth={2.2} />
       </View>
 
       {/* Description */}
@@ -79,7 +73,7 @@ export default function TransactionItem({ tx }: TransactionItemProps) {
 
       {/* Amount */}
       <Text
-        className="text-sm font-semibold"
+        className="text-base font-bold"
         style={{ color: config.amountColor }}
       >
         {prefix}{absAmount.toLocaleString()}

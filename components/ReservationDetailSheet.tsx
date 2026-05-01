@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import {
   CalendarDays,
   Clock,
@@ -18,9 +19,11 @@ import {
   Wallet,
   X,
   Trash2,
+  Eye,
 } from "lucide-react-native";
 import { Colors } from "@/constants/colors";
 import { formatDate } from "@/constants/types";
+import { apiGetReservationPin } from "@/lib/api";
 import type { Reservation } from "@/constants/types";
 
 interface ReservationDetailSheetProps {
@@ -40,6 +43,8 @@ export default function ReservationDetailSheet({
 }: ReservationDetailSheetProps) {
   const [modalMounted, setModalMounted] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [fetchedPin, setFetchedPin] = useState<string | null>(null);
+  const [isFetchingPin, setIsFetchingPin] = useState(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
@@ -79,6 +84,45 @@ export default function ReservationDetailSheet({
       ]).start(() => setModalMounted(false));
     }
   }, [visible]);
+
+  // Reset PIN whenever a new reservation opens
+  useEffect(() => {
+    setFetchedPin(null);
+  }, [reservation?.id]);
+
+  async function handleShowPin() {
+    if (!reservation) return;
+    let pin = fetchedPin;
+    if (!pin) {
+      setIsFetchingPin(true);
+      try {
+        const data = await apiGetReservationPin(reservation.id);
+        pin = data.pin;
+        setFetchedPin(pin);
+      } catch (err) {
+        console.log("[ReservationDetailSheet] PIN fetch failed:", err);
+        Alert.alert("PIN unavailable", "Your PIN will be available closer to the session.");
+        setIsFetchingPin(false);
+        return;
+      }
+      setIsFetchingPin(false);
+    }
+    Alert.alert("Entry PIN", pin, [
+      {
+        text: "Copy",
+        onPress: async () => {
+          await Clipboard.setStringAsync(pin!);
+        },
+      },
+      { text: "Done", style: "cancel" },
+    ]);
+  }
+
+  async function handleCopyPin() {
+    const pin = fetchedPin ?? reservation?.pin;
+    if (!pin) return;
+    await Clipboard.setStringAsync(pin);
+  }
 
   const handleCancel = () => {
     if (!reservation) return;
@@ -160,78 +204,82 @@ export default function ReservationDetailSheet({
               <View className="gap-4 mb-8">
                 {/* Date */}
                 <View className="flex-row items-center gap-3">
-                  <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                    <CalendarDays size={18} color={Colors.textSecondary} strokeWidth={1.75} />
-                  </View>
-                  <View>
-                    <Text className="text-xs text-gray-400 mb-0.5">Date</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
-                      {formatDate(slot.date)}
-                    </Text>
-                  </View>
+                  <CalendarDays size={22} color={Colors.textSecondary} strokeWidth={1.75} />
+                  <Text className="text-base font-semibold text-gray-900">
+                    {formatDate(slot.date)}
+                  </Text>
                 </View>
 
                 {/* Time */}
                 <View className="flex-row items-center gap-3">
-                  <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                    <Clock size={18} color={Colors.textSecondary} strokeWidth={1.75} />
-                  </View>
-                  <View>
-                    <Text className="text-xs text-gray-400 mb-0.5">Time</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
-                      {slot.startTime} – {slot.endTime}
-                    </Text>
-                  </View>
+                  <Clock size={22} color={Colors.textSecondary} strokeWidth={1.75} />
+                  <Text className="text-base font-semibold text-gray-900">
+                    {slot.startTime} – {slot.endTime}
+                  </Text>
                 </View>
 
                 {/* Location */}
-                <View className="flex-row items-center gap-3">
-                  <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                    <MapPin size={18} color={Colors.textSecondary} strokeWidth={1.75} />
-                  </View>
+                <View className="flex-row items-start gap-3">
+                  <MapPin size={22} color={Colors.textSecondary} strokeWidth={1.75} style={{ marginTop: 2 }} />
                   <View className="flex-1">
-                    <Text className="text-xs text-gray-400 mb-0.5">Location</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
+                    <Text className="text-base font-semibold text-gray-900">
                       {centerName || "DrFit Center"}
                     </Text>
                     {!!centerAddress && centerAddress !== "—" && (
-                      <Text className="text-xs text-gray-400">{centerAddress}</Text>
+                      <Text className="text-xs text-gray-400 mt-0.5">{centerAddress}</Text>
                     )}
                   </View>
                 </View>
 
                 {/* Credits */}
                 <View className="flex-row items-center gap-3">
-                  <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
-                    <Wallet size={18} color={Colors.textSecondary} strokeWidth={1.75} />
-                  </View>
-                  <View>
-                    <Text className="text-xs text-gray-400 mb-0.5">Credits</Text>
-                    <Text className="text-sm font-semibold text-gray-900">
-                      {creditsSpent} credits
-                    </Text>
-                  </View>
+                  <Wallet size={22} color={Colors.textSecondary} strokeWidth={1.75} />
+                  <Text className="text-base font-semibold text-gray-900">
+                    {creditsSpent} credits
+                  </Text>
                 </View>
               </View>
 
-              {/* Cancel button */}
-              <TouchableOpacity
-                className={`flex-row items-center justify-center gap-2 bg-red-500 rounded-2xl py-4 ${cancelling ? "opacity-50" : ""}`}
-                onPress={handleCancel}
-                activeOpacity={0.8}
-                disabled={cancelling}
-              >
-                {cancelling ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Trash2 size={16} color="#fff" />
-                    <Text className="text-sm font-semibold text-white">
-                      Cancel Session
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              {/* Action buttons */}
+              <View className="flex-row gap-3">
+                {/* Show PIN */}
+                <TouchableOpacity
+                  className="flex-1 flex-row items-center justify-center gap-2 bg-black rounded-2xl py-4"
+                  onPress={handleShowPin}
+                  activeOpacity={0.85}
+                  disabled={isFetchingPin}
+                >
+                  {isFetchingPin ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Eye size={16} color="#fff" />
+                      <Text className="text-sm font-semibold text-white">
+                        Show PIN
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Cancel session */}
+                <TouchableOpacity
+                  className={`flex-1 flex-row items-center justify-center gap-2 bg-red-500 rounded-2xl py-4 ${cancelling ? "opacity-50" : ""}`}
+                  onPress={handleCancel}
+                  activeOpacity={0.85}
+                  disabled={cancelling}
+                >
+                  {cancelling ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Trash2 size={16} color="#fff" />
+                      <Text className="text-sm font-semibold text-white">
+                        Cancel
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
           </Pressable>
         </Animated.View>

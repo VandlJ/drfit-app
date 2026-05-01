@@ -19,7 +19,7 @@ export default function ConfirmScreen() {
 
   if (!slot) {
     return (
-      <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center">
+      <SafeAreaView className="flex-1 bg-neutral-100 items-center justify-center" edges={["top","left","right"]}>
         <Text className="text-gray-500">Slot not found.</Text>
         <TouchableOpacity onPress={() => router.back()} className="mt-4">
           <Text className="text-black font-semibold">Go back</Text>
@@ -45,7 +45,7 @@ export default function ConfirmScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-neutral-100">
+    <SafeAreaView className="flex-1 bg-neutral-100" edges={["top","left","right"]}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
