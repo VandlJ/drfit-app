@@ -6,9 +6,11 @@ import { Plus, MapPin, ChevronDown, Wallet } from "lucide-react-native";
 import HeroCard from "@/components/HeroCard";
 import BookingCard from "@/components/BookingCard";
 import CenterPickerSheet from "@/components/CenterPickerSheet";
+import ReservationDetailSheet from "@/components/ReservationDetailSheet";
 import { useAuth } from "@/context/AuthContext";
 import { useData } from "@/context/DataContext";
 import { Colors } from "@/constants/colors";
+import type { Reservation } from "@/constants/types";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -19,8 +21,10 @@ export default function HomeScreen() {
     centers,
     selectedCenter,
     setSelectedCenter,
+    cancelReservation,
   } = useData();
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null);
 
   const activeReservations = reservations
     .filter((r) => r.status === "active")
@@ -71,12 +75,14 @@ export default function HomeScreen() {
               <Text className="text-sm font-semibold text-black">
                 {creditBalance}
               </Text>
-              <Text className="text-xs text-gray-400">cr</Text>
             </TouchableOpacity>
           </View>
 
           {/* Hero card */}
-          <HeroCard reservation={heroReservation} />
+          <HeroCard
+            reservation={heroReservation}
+            onDetailsPress={heroReservation ? () => setSelectedReservation(heroReservation) : undefined}
+          />
 
           {/* Upcoming */}
           {upcomingReservations.length > 0 && (
@@ -86,7 +92,11 @@ export default function HomeScreen() {
               </Text>
               <View className="gap-2">
                 {upcomingReservations.map((r) => (
-                  <BookingCard key={r.id} reservation={r} />
+                  <BookingCard
+                    key={r.id}
+                    reservation={r}
+                    onPress={() => setSelectedReservation(r)}
+                  />
                 ))}
               </View>
             </View>
@@ -112,6 +122,13 @@ export default function HomeScreen() {
         selectedCenterId={selectedCenter.id}
         onSelect={setSelectedCenter}
         onClose={() => setPickerVisible(false)}
+      />
+
+      <ReservationDetailSheet
+        reservation={selectedReservation}
+        visible={!!selectedReservation}
+        onClose={() => setSelectedReservation(null)}
+        onCancel={cancelReservation}
       />
     </SafeAreaView>
   );

@@ -87,7 +87,7 @@ export default function SlotList({
                     : "text-black"
                 }`}
               >
-                {slot.priceCredits} cr
+                {slot.priceCredits}
               </Text>
               {isUnavailable ? (
                 <View className="bg-gray-200 rounded-full px-2 py-0.5">

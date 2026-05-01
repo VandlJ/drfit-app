@@ -19,8 +19,8 @@ export default function BookingCard({ reservation, onPress }: BookingCardProps) 
       activeOpacity={0.7}
     >
       <View className="flex-row items-center gap-3">
-        <View className="bg-primary rounded-xl w-10 h-10 items-center justify-center">
-          <CalendarDays size={18} color={Colors.textPrimary} strokeWidth={1.75} />
+        <View className="bg-gray-100 rounded-xl w-10 h-10 items-center justify-center">
+          <CalendarDays size={18} color={Colors.textSecondary} strokeWidth={1.75} />
         </View>
         <View className="gap-0.5">
           <Text className="text-sm font-semibold text-gray-900">
@@ -36,7 +36,6 @@ export default function BookingCard({ reservation, onPress }: BookingCardProps) 
         </View>
       </View>
       <View className="flex-row items-center gap-1.5">
-        <Text className="text-xs text-gray-400">{slot.priceCredits} cr</Text>
         <ChevronRight size={16} color={Colors.textMuted} />
       </View>
     </TouchableOpacity>

@@ -82,7 +82,7 @@ export default function TransactionItem({ tx }: TransactionItemProps) {
         className="text-sm font-semibold"
         style={{ color: config.amountColor }}
       >
-        {prefix}{absAmount.toLocaleString()} cr
+        {prefix}{absAmount.toLocaleString()}
       </Text>
     </View>
   );

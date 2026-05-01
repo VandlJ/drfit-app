@@ -1,23 +1,34 @@
-import { View, Text, TouchableOpacity, Alert } from "react-native";
+import { useState, useCallback } from "react";
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Lock, Unlock, Copy, Dumbbell } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { Lock, Unlock, Copy, Dumbbell, MapPin, ChevronRight } from "lucide-react-native";
+import { useRouter, useFocusEffect } from "expo-router";
 import ActiveTimer from "./ActiveTimer";
 import { Colors } from "@/constants/colors";
+import { apiGetReservationPin } from "@/lib/api";
 import type { Reservation } from "@/constants/types";
-import {
-  getHeroCardState,
-  formatDate,
-  getSlotStartDate,
-} from "@/constants/types";
+import { getHeroCardState, formatDate } from "@/constants/types";
 
 interface HeroCardProps {
   reservation: Reservation | null;
+  onDetailsPress?: () => void;
 }
 
-export default function HeroCard({ reservation }: HeroCardProps) {
+export default function HeroCard({ reservation, onDetailsPress }: HeroCardProps) {
   const router = useRouter();
   const state = getHeroCardState(reservation);
+  const [pinRevealed, setPinRevealed] = useState(false);
+  const [fetchedPin, setFetchedPin] = useState<string | null>(null);
+  const [isFetchingPin, setIsFetchingPin] = useState(false);
+
+  // Auto-hide PIN when user navigates away from this tab
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setPinRevealed(false);
+      };
+    }, [])
+  );
 
   // ── No upcoming reservation ───────────────────────────────────────────────
   if (state === "no_reservation" || !reservation) {
@@ -52,10 +63,27 @@ export default function HeroCard({ reservation }: HeroCardProps) {
     return <ActiveTimer reservation={reservation} />;
   }
 
-  // ── Upcoming (PIN hidden or visible) ─────────────────────────────────────
-  const isPinVisible = state === "visible_pin";
-  const { slot, pin } = reservation;
-  const formattedDate = formatDate(slot.date);
+  // ── Upcoming — PIN hidden until user taps Reveal ──────────────────────────
+  const { slot, centerName, centerAddress } = reservation;
+  const pin = fetchedPin ?? reservation.pin;
+
+  async function handleReveal() {
+    if (pin) {
+      setPinRevealed(true);
+      return;
+    }
+    // PIN not in cache yet — fetch from API
+    setIsFetchingPin(true);
+    try {
+      const data = await apiGetReservationPin(reservation!.id);
+      setFetchedPin(data.pin);
+      setPinRevealed(true);
+    } catch {
+      Alert.alert("PIN unavailable", "Your PIN will be available closer to the session.");
+    } finally {
+      setIsFetchingPin(false);
+    }
+  }
 
   async function copyPin() {
     if (pin) {
@@ -68,34 +96,46 @@ export default function HeroCard({ reservation }: HeroCardProps) {
     <View className="bg-white rounded-2xl p-5 border border-gray-100 gap-4">
       {/* Status badge */}
       <View className="flex-row items-center justify-between">
-        <View className="bg-primary rounded-full px-3 py-1">
-          <Text className="text-black text-xs font-semibold uppercase tracking-wider">
+        <View className="rounded-full px-3 py-1" style={{ backgroundColor: Colors.primaryLight }}>
+          <Text className="text-xs font-semibold uppercase tracking-wider text-black">
             Next Session
           </Text>
         </View>
-        {isPinVisible && (
-          <View className="bg-primary rounded-full px-2 py-1">
-            <Text className="text-black text-[10px] font-semibold">
-              Ready
-            </Text>
-          </View>
+        {onDetailsPress && (
+          <TouchableOpacity
+            className="flex-row items-center gap-0.5"
+            onPress={onDetailsPress}
+            activeOpacity={0.7}
+          >
+            <Text className="text-xs font-semibold text-gray-400">Details</Text>
+            <ChevronRight size={13} color={Colors.textMuted} />
+          </TouchableOpacity>
         )}
       </View>
 
       {/* Date & time */}
       <View className="gap-1">
         <Text className="font-unbounded text-black" style={{ fontSize: 22 }}>
-          {formattedDate}
+          {formatDate(slot.date)}
         </Text>
         <Text className="text-base text-gray-500">
           {slot.startTime} – {slot.endTime}
         </Text>
+        <View className="flex-row items-center gap-1 mt-0.5">
+          <MapPin size={11} color={Colors.textMuted} />
+          <Text className="text-xs text-gray-400">{centerName}</Text>
+        </View>
       </View>
 
       {/* PIN display */}
-      <View className="bg-neutral-50 rounded-2xl p-4 items-center gap-2 border border-gray-100">
+      <TouchableOpacity
+        className="bg-neutral-50 rounded-2xl p-4 items-center gap-2 border border-gray-100"
+        onPress={pinRevealed ? () => setPinRevealed(false) : handleReveal}
+        activeOpacity={0.7}
+        disabled={isFetchingPin}
+      >
         <View className="flex-row items-center gap-2 mb-1">
-          {isPinVisible ? (
+          {pinRevealed ? (
             <Unlock size={14} color={Colors.textSecondary} />
           ) : (
             <Lock size={14} color={Colors.textMuted} />
@@ -105,7 +145,7 @@ export default function HeroCard({ reservation }: HeroCardProps) {
           </Text>
         </View>
 
-        {isPinVisible && pin ? (
+        {pinRevealed && pin ? (
           <View className="items-center gap-3">
             <Text className="text-5xl font-bold text-black tracking-[0.25em]">
               {pin}
@@ -116,22 +156,24 @@ export default function HeroCard({ reservation }: HeroCardProps) {
               activeOpacity={0.8}
             >
               <Copy size={14} color={Colors.textPrimary} />
-              <Text className="text-black text-xs font-semibold">
-                Copy PIN
-              </Text>
+              <Text className="text-black text-xs font-semibold">Copy PIN</Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <View className="items-center gap-2">
-            <Text className="text-5xl font-bold text-gray-300 tracking-[0.25em]">
-              ••••••
-            </Text>
-            <Text className="text-xs text-gray-400 text-center">
-              PIN revealed 30 min before your session
-            </Text>
+          <View className="items-center gap-1.5">
+            {isFetchingPin ? (
+              <ActivityIndicator size="large" color={Colors.textMuted} />
+            ) : (
+              <Text className="text-5xl font-bold text-gray-300 tracking-[0.25em]">
+                ••••••
+              </Text>
+            )}
+            <View className="bg-primary rounded-full px-3 py-1 mt-0.5">
+              <Text className="text-xs font-semibold text-black">Tap to reveal</Text>
+            </View>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
     </View>
   );
 }

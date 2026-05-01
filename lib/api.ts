@@ -164,6 +164,17 @@ export async function apiLogin(
   });
 }
 
+export async function apiRegister(
+  name: string,
+  email: string,
+  password: string
+): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
 export async function apiLogout(refreshToken: string): Promise<void> {
   await apiFetch("/auth/logout", {
     method: "POST",

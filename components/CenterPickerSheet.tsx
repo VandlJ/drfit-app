@@ -102,7 +102,7 @@ export default function CenterPickerSheet({
               {/* Header */}
               <View className="flex-row items-center justify-between mb-5">
                 <Text className="text-lg font-bold text-gray-900">
-                  Vyber fitness centrum
+                  Select Location
                 </Text>
                 <TouchableOpacity
                   className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
@@ -139,7 +139,7 @@ export default function CenterPickerSheet({
                       >
                         <MapPin
                           size={20}
-                          color={isSelected ? Colors.primary : Colors.textSecondary}
+                          color={isSelected ? Colors.textPrimary : Colors.textSecondary}
                         />
                       </View>
 
@@ -147,7 +147,7 @@ export default function CenterPickerSheet({
                       <View className="flex-1 gap-0.5">
                         <Text
                           className={`text-sm font-semibold ${
-                            isSelected ? "text-primary" : "text-gray-900"
+                            isSelected ? "text-black" : "text-gray-900"
                           }`}
                         >
                           {center.name}
